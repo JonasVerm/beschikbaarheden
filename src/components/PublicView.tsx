@@ -284,12 +284,19 @@ export function PublicView() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
                 <span className="font-medium">
-                  {new Date(selectedShow.date).toLocaleDateString('nl-BE', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })} om {selectedShow.startTime}
+                  {(() => {
+                    const [year, month, day] = selectedShow.date.split('-').map(Number);
+                    // Use UTC to avoid timezone issues
+                    const date = new Date(Date.UTC(year, month - 1, day));
+                    
+                    const weekdays = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+                    const months = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+                    
+                    const weekday = weekdays[date.getUTCDay()];
+                    const monthName = months[date.getUTCMonth()];
+                    
+                    return `${weekday} ${day} ${monthName} ${year}`;
+                  })()} om {selectedShow.startTime}
                 </span>
               </div>
             </div>

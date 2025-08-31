@@ -12,7 +12,7 @@ export async function requireAdmin(ctx: any) {
   const userRole = await ctx.db
     .query("userRoles")
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
-    .unique();
+    .first();
 
   if (!userRole) {
     throw new Error("Admin access required");

@@ -24,7 +24,7 @@ export async function handleSuperAdminSetup(
       const pendingEmail = await ctx.db
         .query("organizationSettings")
         .withIndex("by_key", (q: any) => q.eq("key", "pending_superadmin_email"))
-        .unique();
+        .first();
 
       if (pendingEmail && pendingEmail.value === user.email) {
         console.log("User matches pending super admin, creating role");
@@ -33,7 +33,7 @@ export async function handleSuperAdminSetup(
         const existingRole = await ctx.db
           .query("userRoles")
           .withIndex("by_user", (q: any) => q.eq("userId", userId))
-          .unique();
+          .first();
         
         if (!existingRole) {
           // This user should become the super admin
@@ -50,7 +50,7 @@ export async function handleSuperAdminSetup(
         const pendingName = await ctx.db
           .query("organizationSettings")
           .withIndex("by_key", (q: any) => q.eq("key", "pending_superadmin_name"))
-          .unique();
+          .first();
 
         if (pendingName) {
           await ctx.db.delete(pendingName._id);

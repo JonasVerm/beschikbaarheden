@@ -6,14 +6,6 @@ import { ShowDetails } from "./ShowDetails";
 import { Id } from "../../convex/_generated/dataModel";
 import * as XLSX from 'xlsx';
 
-type CalendarDay = {
-  date: Date;
-  dateStr: string;
-  day: number;
-  isCurrentMonth: boolean;
-  shows: any[];
-};
-
 export function ShowsManager() {
   const [showForm, setShowForm] = useState(false);
   const [editingShowId, setEditingShowId] = useState<Id<"shows"> | null>(null);
@@ -35,23 +27,49 @@ export function ShowsManager() {
   const removeShow = useMutation(api.shows.remove);
   const importFromExcel = useMutation(api.shows.importFromExcel);
 
-  // Calendar generation
-  const generateCalendarDays = (): CalendarDay[] => {
+  // Calendar navigation
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+  };
+
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+  };
+
+  const monthName = currentDate.toLocaleString('nl-BE', { month: 'long', year: 'numeric' });
+
+  // Group shows by date for calendar display
+  const showsByDate = new Map<string, any[]>();
+  if (shows) {
+    shows.forEach(show => {
+      const dateKey = show.date;
+      if (!showsByDate.has(dateKey)) {
+        showsByDate.set(dateKey, []);
+      }
+      showsByDate.get(dateKey)!.push(show);
+    });
+  }
+
+  // Generate calendar days
+  const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    
     const firstDay = new Date(year, month, 1);
     const startDate = new Date(firstDay);
+    // Adjust to start from Monday
     const dayOfWeek = firstDay.getDay();
     const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     startDate.setDate(startDate.getDate() - daysToSubtract);
     
-    const days: CalendarDay[] = [];
+    const days = [];
     const current = new Date(startDate);
     
+    // Generate 6 weeks (42 days)
     for (let i = 0; i < 42; i++) {
       const dateStr = current.toISOString().split('T')[0];
       const isCurrentMonth = current.getMonth() === month;
-      const dayShows = shows?.filter(show => show.date === dateStr) || [];
+      const dayShows = showsByDate.get(dateStr) || [];
       
       days.push({
         date: new Date(current),
@@ -282,6 +300,32 @@ export function ShowsManager() {
     toast.success("Template gedownload!");
   };
 
+  const formatDate = (dateStr: string) => {
+    // Parse date string as local date to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    console.log(`Formatting date: ${dateStr} -> year=${year}, month=${month}, day=${day}`);
+    
+    // Use UTC to avoid timezone issues
+    const date = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
+    
+    // Format manually to ensure correct display
+    const weekdays = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+    const months = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    
+    const weekday = weekdays[date.getUTCDay()];
+    const monthName = months[date.getUTCMonth()];
+    
+    const formatted = `${weekday} ${day} ${monthName}`;
+    console.log(`Final formatted date: ${formatted}`);
+    
+    return formatted;
+  };
+
+  const getTotalPeopleNeeded = (show: any) => {
+    if (!show.roles) return 0;
+    return Object.values(show.roles).reduce((sum: number, count: any) => sum + (Number(count) || 0), 0);
+  };
+
   if (selectedShowId) {
     return (
       <ShowDetails 
@@ -297,17 +341,17 @@ export function ShowsManager() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Shows Beheren</h2>
-          <p className="text-gray-600">Beheer voorstellingen en hun beschikbaarheid</p>
+          <p className="text-gray-600">Beheer voorstellingen en bekijk ze in kalenderweergave</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={downloadTemplate}
             className="btn-gray flex items-center space-x-2"
           >
-            <span>Download Template</span>
+            <span>📥 Download Template</span>
           </button>
           <label className="btn-secondary flex items-center space-x-2 cursor-pointer">
-            <span>Import Excel</span>
+            <span>📊 Import Excel</span>
             <input
               type="file"
               accept=".xlsx,.xls"
@@ -335,12 +379,12 @@ export function ShowsManager() {
             }}
             className="btn-primary flex items-center space-x-2"
           >
-            <span>Nieuwe Show</span>
+            <span>➕ Nieuwe Show</span>
           </button>
         </div>
       </div>
 
-      {/* Create Form */}
+      {/* Create/Edit Form */}
       {showForm && (
         <div className="modern-card p-8 animate-fade-in-up">
           <div className="flex items-center justify-between mb-6">
@@ -487,19 +531,18 @@ export function ShowsManager() {
 
       {/* Calendar View */}
       <div className="modern-card p-8">
-        <div className="flex justify-between items-center mb-8">
+        {/* Calendar Header */}
+        <div className="flex justify-between items-center mb-6">
           <button
-            onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+            onClick={prevMonth}
             className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
             style={{ backgroundColor: '#161616' }}
           >
             ← Vorige
           </button>
-          <h3 className="text-2xl font-bold" style={{ color: '#161616' }}>
-            {currentDate.toLocaleString('nl-BE', { month: 'long', year: 'numeric' })}
-          </h3>
+          <h3 className="text-2xl font-bold" style={{ color: '#161616' }}>{monthName}</h3>
           <button
-            onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+            onClick={nextMonth}
             className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
             style={{ backgroundColor: '#161616' }}
           >
@@ -543,38 +586,42 @@ export function ShowsManager() {
                 {calDay.day}
               </div>
               <div className="space-y-1">
-                {calDay.shows.map((show) => (
-                  <div
-                    key={show._id}
-                    className="w-full text-left p-2 text-xs text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
-                    style={{ backgroundColor: '#161616' }}
-                  >
-                    <div className="font-medium truncate">{show.name}</div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span style={{ color: '#FAE682' }}>{show.startTime}</span>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => setSelectedShowId(show._id)}
-                          className="text-xs px-1 py-0.5 bg-blue-500 hover:bg-blue-600 rounded"
-                          title="Details"
-                        >
-                          👁
-                        </button>
-                        <button
-                          onClick={() => handleEdit(show)}
-                          className="text-xs px-1 py-0.5 bg-green-500 hover:bg-green-600 rounded"
-                          title="Bewerken"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDelete(show._id)}
-                          className="text-xs px-1 py-0.5 bg-red-500 hover:bg-red-600 rounded"
-                          title="Verwijderen"
-                        >
-                          🗑️
-                        </button>
+                {calDay.shows.map((show: any) => (
+                  <div key={show._id} className="relative group">
+                    <div
+                      className="w-full text-left p-2 text-xs text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
+                      style={{ backgroundColor: '#161616' }}
+                      onClick={() => setSelectedShowId(show._id)}
+                    >
+                      <div className="font-medium truncate">{show.name}</div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span style={{ color: '#FAE682' }}>{show.startTime}</span>
+                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
                       </div>
+                    </div>
+                    
+                    {/* Action buttons - show on hover */}
+                    <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(show);
+                        }}
+                        className="p-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                        title="Bewerken"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(show._id);
+                        }}
+                        className="p-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                        title="Verwijderen"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -582,39 +629,42 @@ export function ShowsManager() {
             </div>
           ))}
         </div>
-
-        {shows && shows.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="w-8 h-8 bg-brand-primary rounded-lg"></div>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Geen shows gevonden</h3>
-            <p className="text-gray-600 mb-6">Begin met het aanmaken van je eerste show</p>
-            <button
-              onClick={() => {
-                setEditingShowId(null);
-                const initialRoles: Record<string, number> = {};
-                roles?.forEach(role => {
-                  initialRoles[role.name] = 0;
-                });
-                setFormData({
-                  name: "",
-                  date: "",
-                  startTime: "",
-                  openDate: "",
-                  closeDate: "",
-                  roles: initialRoles
-                });
-                setShowForm(true);
-              }}
-              className="btn-primary"
-              disabled={!roles || roles.length === 0}
-            >
-              {!roles || roles.length === 0 ? "Maak eerst functies aan" : "Eerste Show Aanmaken"}
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Empty State */}
+      {shows && shows.length === 0 && (
+        <div className="modern-card p-12 text-center">
+          <div className="w-20 h-20 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">🎭</span>
+          </div>
+          <h3 className="text-2xl font-semibold text-gray-900 mb-3">Geen shows gepland</h3>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+            Begin met het aanmaken van je eerste show om de planning te starten
+          </p>
+          <button
+            onClick={() => {
+              setEditingShowId(null);
+              const initialRoles: Record<string, number> = {};
+              roles?.forEach(role => {
+                initialRoles[role.name] = 0;
+              });
+              setFormData({
+                name: "",
+                date: "",
+                startTime: "",
+                openDate: "",
+                closeDate: "",
+                roles: initialRoles
+              });
+              setShowForm(true);
+            }}
+            className="btn-primary"
+            disabled={!roles || roles.length === 0}
+          >
+            {!roles || roles.length === 0 ? "Maak eerst functies aan" : "🎭 Eerste Show Aanmaken"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

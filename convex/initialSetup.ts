@@ -18,7 +18,7 @@ export const hasSuperAdmin = query({
     const pendingSetup = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "pending_superadmin_email"))
-      .unique();
+      .first();
     
     return !!pendingSetup;
   },
@@ -45,7 +45,7 @@ export const createFirstSuperAdmin = mutation({
     const existingSetup = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "pending_superadmin_email"))
-      .unique();
+      .first();
     
     if (existingSetup) {
       throw new Error("Er is al een super admin setup in behandeling");

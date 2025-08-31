@@ -24,7 +24,7 @@ export const linkUserToAdminRole = mutation({
       const existingRole = await ctx.db
         .query("userRoles")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .unique();
+        .first();
       
       if (existingRole) {
         console.log("User already has role:", existingRole.role);
@@ -35,7 +35,7 @@ export const linkUserToAdminRole = mutation({
       const pendingEmail = await ctx.db
         .query("organizationSettings")
         .withIndex("by_key", (q) => q.eq("key", "pending_superadmin_email"))
-        .unique();
+        .first();
       
       console.log("Pending email setting:", pendingEmail);
       

@@ -27,7 +27,10 @@ export function ShowDetails({ showId, onBack }: Props) {
           <div>
             <h2 className="text-2xl font-bold" style={{ color: '#161616' }}>{showData.name}</h2>
             <p className="text-gray-600">
-              {new Date(showData.date).toLocaleDateString('nl-BE')} om {showData.startTime}
+              {(() => {
+                const [year, month, day] = showData.date.split('-').map(Number);
+                return `${day}/${month}/${year}`;
+              })()} om {showData.startTime}
             </p>
           </div>
           <button

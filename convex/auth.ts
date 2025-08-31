@@ -29,7 +29,7 @@ export const loggedInUser = query({
     const userRole = await ctx.db
       .query("userRoles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
+      .first();
     
     return {
       ...user,
@@ -54,7 +54,7 @@ export const createAdminAccount = mutation({
     const currentUserRole = await ctx.db
       .query("userRoles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
+      .first();
     
     if (!currentUserRole || currentUserRole.role !== "superadmin") {
       throw new Error("Alleen super admins kunnen nieuwe beheerders aanmaken");
@@ -97,7 +97,7 @@ export const listAdmins = query({
     const currentUserRole = await ctx.db
       .query("userRoles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
+      .first();
     
     if (!currentUserRole || currentUserRole.role !== "superadmin") {
       throw new Error("Alleen super admins kunnen beheerders bekijken");
@@ -135,7 +135,7 @@ export const removeAdmin = mutation({
     const currentUserRole = await ctx.db
       .query("userRoles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
+      .first();
     
     if (!currentUserRole || currentUserRole.role !== "superadmin") {
       throw new Error("Alleen super admins kunnen beheerders verwijderen");
@@ -149,7 +149,7 @@ export const removeAdmin = mutation({
     const userRole = await ctx.db
       .query("userRoles")
       .withIndex("by_user", (q) => q.eq("userId", args.adminId))
-      .unique();
+      .first();
     
     if (userRole) {
       await ctx.db.delete(userRole._id);

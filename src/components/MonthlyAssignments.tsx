@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 
 export function MonthlyAssignments() {
@@ -54,8 +55,11 @@ export function MonthlyAssignments() {
         const status = shift.assignedPerson ? 'Toegewezen' : 'Niet Toegewezen';
         const position = shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 ? `#${shift.position}` : '';
         
+        const [year, month, day] = show.date.split('-').map(Number);
+        const localDate = new Date(Date.UTC(year, month - 1, day));
+        
         excelData.push([
-          show.name, new Date(show.date).toLocaleDateString('nl-BE'), show.startTime,
+          show.name, localDate.toLocaleDateString('nl-BE'), show.startTime,
           shift.role, position, shift.startTime || '', shift.assignedPerson?.name || '',
           status, availablePeopleNames
         ]);
@@ -143,12 +147,20 @@ export function MonthlyAssignments() {
             <div className="mb-4">
               <h3 className="text-lg font-semibold" style={{ color: '#161616' }}>{show.name}</h3>
               <p className="text-gray-600">
-                {new Date(show.date).toLocaleDateString('nl-BE', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })} om {show.startTime}
+                {(() => {
+                  const [year, month, day] = show.date.split('-').map(Number);
+                  // Use UTC to avoid timezone issues
+                  const date = new Date(Date.UTC(year, month - 1, day));
+                  
+                  // Format manually to avoid timezone issues
+                  const weekdays = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+                  const months = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+                  
+                  const weekday = weekdays[date.getUTCDay()];
+                  const monthName = months[date.getUTCMonth()];
+                  
+                  return `${weekday} ${day} ${monthName} ${year}`;
+                })()} om {show.startTime}
               </p>
             </div>
 

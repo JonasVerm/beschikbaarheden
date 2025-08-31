@@ -8,7 +8,7 @@ export const getPublicPassword = query({
     const setting = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "public_password"))
-      .unique();
+      .first();
     
     return setting?.value || null;
   },
@@ -24,7 +24,7 @@ export const setPublicPassword = mutation({
     const existingSetting = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "public_password"))
-      .unique();
+      .first();
     
     if (existingSetting) {
       await ctx.db.patch(existingSetting._id, {
@@ -49,7 +49,7 @@ export const verifyPublicPassword = query({
     const setting = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "public_password"))
-      .unique();
+      .first();
     
     // If no password is set, allow access
     if (!setting || !setting.value) {
@@ -66,7 +66,7 @@ export const hasPublicPassword = query({
     const setting = await ctx.db
       .query("organizationSettings")
       .withIndex("by_key", (q) => q.eq("key", "public_password"))
-      .unique();
+      .first();
     
     return !!(setting && setting.value);
   },
