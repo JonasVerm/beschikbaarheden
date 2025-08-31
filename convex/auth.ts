@@ -7,6 +7,11 @@ import { handleSuperAdminSetup } from "./authCallbacks";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [Password, Anonymous],
+  callbacks: {
+    async afterUserCreatedOrUpdated(ctx, { existingUserId, userId }) {
+      await handleSuperAdminSetup(ctx, existingUserId, userId);
+    },
+  },
 });
 
 export const loggedInUser = query({
