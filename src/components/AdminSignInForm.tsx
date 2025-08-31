@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { toast } from "sonner";
+import { DebugSuperAdmin } from "./DebugSuperAdmin";
 
 export function AdminSignInForm() {
   const { signIn } = useAuthActions();
@@ -9,6 +10,8 @@ export function AdminSignInForm() {
 
   return (
     <div className="w-full">
+      <DebugSuperAdmin />
+      
       <div className="flex gap-2 mb-4">
         <button
           type="button"
