@@ -35,9 +35,11 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 glass-effect h-20 flex justify-between items-center border-b border-white/20 shadow-lg px-6">
         <div className="flex items-center space-x-4">
-          <div className="w-10 h-10 gradient-brand rounded-xl flex items-center justify-center">
-            <span className="text-brand-dark font-bold text-xl">C</span>
-          </div>
+          <img 
+            src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
+            alt="Capitole Gent Logo"
+            className="h-12 w-12 object-contain rounded-lg shadow-md"
+          />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Capitole Gent</h1>
             <p className="text-sm text-gray-600">Beschikbaarheden Systeem</p>

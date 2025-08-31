@@ -224,7 +224,16 @@ export function PublicView() {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-          <h2 className="text-3xl font-bold mb-8 text-center" style={{ color: '#161616' }}>Selecteer je naam</h2>
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <img 
+                src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
+                alt="Capitole Gent Logo"
+                className="h-20 w-auto object-contain rounded-lg shadow-md"
+              />
+            </div>
+            <h2 className="text-3xl font-bold" style={{ color: '#161616' }}>Selecteer je naam</h2>
+          </div>
           
           {peopleByGroup && peopleByGroup.length > 0 ? (
             <div className="space-y-6">
