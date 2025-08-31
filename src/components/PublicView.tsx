@@ -101,7 +101,7 @@ export function PublicView() {
   }
 
   // Generate calendar days
-  const generateCalendarDays = (): CalendarDay[] => {
+  const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     
@@ -112,17 +112,22 @@ export function PublicView() {
     const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday (0), go back 6 days to Monday
     startDate.setDate(startDate.getDate() - daysToSubtract);
     
-    const days: CalendarDay[] = [];
+    const days = [];
     const current = new Date(startDate);
     
     // Generate 6 weeks (42 days) to fill the calendar grid
     for (let i = 0; i < 42; i++) {
-      const dateStr = current.toISOString().split('T')[0];
-      const isCurrentMonth = current.getMonth() === month;
+      // Use local date string to match the database format
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const isCurrentMonth = current.getMonth() === currentDate.getMonth();
       const dayShows = showsByDate.get(dateStr) || [];
       
       days.push({
-        date: new Date(current),
+        date: new Date(current.getFullYear(), current.getMonth(), current.getDate()),
         dateStr,
         day: current.getDate(),
         isCurrentMonth,

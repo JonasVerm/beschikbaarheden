@@ -67,8 +67,13 @@ export function ShowsManager() {
     
     // Generate 6 weeks (42 days)
     for (let i = 0; i < 42; i++) {
-      const dateStr = current.toISOString().split('T')[0];
-      const isCurrentMonth = current.getMonth() === month;
+      // Use local date string to match the database format
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const isCurrentMonth = current.getMonth() === currentDate.getMonth();
       const dayShows = showsByDate.get(dateStr) || [];
       
       days.push({
