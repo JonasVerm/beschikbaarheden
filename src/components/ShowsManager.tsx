@@ -35,6 +35,41 @@ export function ShowsManager() {
   const removeShow = useMutation(api.shows.remove);
   const importFromExcel = useMutation(api.shows.importFromExcel);
 
+  // Calendar generation
+  const generateCalendarDays = (): CalendarDay[] => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    const dayOfWeek = firstDay.getDay();
+    const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    startDate.setDate(startDate.getDate() - daysToSubtract);
+    
+    const days: CalendarDay[] = [];
+    const current = new Date(startDate);
+    
+    for (let i = 0; i < 42; i++) {
+      const dateStr = current.toISOString().split('T')[0];
+      const isCurrentMonth = current.getMonth() === month;
+      const dayShows = shows?.filter(show => show.date === dateStr) || [];
+      
+      days.push({
+        date: new Date(current),
+        dateStr,
+        day: current.getDate(),
+        isCurrentMonth,
+        shows: dayShows
+      });
+      
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const calendarDays = generateCalendarDays();
+  const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
   // Initialize roles in form data when roles are loaded
   useState(() => {
     if (roles && Object.keys(formData.roles).length === 0) {
@@ -455,7 +490,7 @@ export function ShowsManager() {
         <div className="flex justify-between items-center mb-8">
           <button
             onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all"
+            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
             style={{ backgroundColor: '#161616' }}
           >
             ← Vorige
@@ -465,104 +500,120 @@ export function ShowsManager() {
           </h3>
           <button
             onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all"
+            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
             style={{ backgroundColor: '#161616' }}
           >
             Volgende →
           </button>
         </div>
-        
-        <div className="p-6">
-          {shows && shows.length > 0 ? (
-            <div className="grid gap-4">
-              {shows.map((show) => (
-                <div key={show._id} className="modern-card-hover p-6">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex-1">
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">{show.name}</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-brand-primary">Datum:</span>
-                          <span className="font-medium">{show.date} om {show.startTime}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-brand-primary">Beschikbaar:</span>
-                          <span>{show.openDate} - {show.closeDate}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-brand-primary">Functies:</span>
-                          <span>
-                            {show.roles ? 
-                              Object.entries(show.roles)
-                                .filter(([_, count]) => count > 0)
-                                .map(([roleName, count]) => {
-                                  const role = roles?.find(r => r.name === roleName);
-                                  return `${role?.displayName || roleName}: ${count}`;
-                                })
-                                .join(', ') || 'Geen functies'
-                              : 'Niet ingesteld'
-                            }
-                          </span>
-                        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1 mb-4">
+          {/* Week day headers */}
+          {weekDays.map(day => (
+            <div key={day} className="p-2 text-center font-semibold text-gray-600" style={{ backgroundColor: '#FAE682' }}>
+              {day}
+            </div>
+          ))}
+          
+          {/* Calendar days */}
+          {calendarDays.map((calDay, index) => (
+            <div
+              key={index}
+              className={`min-h-[120px] p-2 border-2 transition-all duration-200 ${
+                !calDay.isCurrentMonth 
+                  ? 'bg-gray-100 text-gray-400 border-gray-200' 
+                  : calDay.shows.length > 0 
+                    ? 'bg-white border-yellow-400 shadow-lg hover:shadow-xl' 
+                    : 'bg-gray-100 text-gray-400 border-gray-200'
+              }`}
+              style={calDay.isCurrentMonth && calDay.shows.length > 0 ? { 
+                backgroundColor: '#FAE682', 
+                borderColor: '#F59E0B',
+                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+              } : {}}
+            >
+              <div className={`font-semibold mb-1 ${
+                calDay.isCurrentMonth && calDay.shows.length > 0 
+                  ? 'text-black' 
+                  : calDay.isCurrentMonth 
+                    ? 'text-gray-400' 
+                    : 'text-gray-400'
+              }`}>
+                {calDay.day}
+              </div>
+              <div className="space-y-1">
+                {calDay.shows.map((show) => (
+                  <div
+                    key={show._id}
+                    className="w-full text-left p-2 text-xs text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                    style={{ backgroundColor: '#161616' }}
+                  >
+                    <div className="font-medium truncate">{show.name}</div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span style={{ color: '#FAE682' }}>{show.startTime}</span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setSelectedShowId(show._id)}
+                          className="text-xs px-1 py-0.5 bg-blue-500 hover:bg-blue-600 rounded"
+                          title="Details"
+                        >
+                          👁
+                        </button>
+                        <button
+                          onClick={() => handleEdit(show)}
+                          className="text-xs px-1 py-0.5 bg-green-500 hover:bg-green-600 rounded"
+                          title="Bewerken"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => handleDelete(show._id)}
+                          className="text-xs px-1 py-0.5 bg-red-500 hover:bg-red-600 rounded"
+                          title="Verwijderen"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setSelectedShowId(show._id)}
-                        className="btn-secondary"
-                      >
-                        Details
-                      </button>
-                      <button
-                        onClick={() => handleEdit(show)}
-                        className="btn-accent"
-                      >
-                        Bewerken
-                      </button>
-                      <button
-                        onClick={() => handleDelete(show._id)}
-                        className="btn-danger"
-                      >
-                        Verwijderen
-                      </button>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-4">
-                <div className="w-8 h-8 bg-brand-primary rounded-lg"></div>
+                ))}
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Geen shows gevonden</h3>
-              <p className="text-gray-600 mb-6">Begin met het aanmaken van je eerste show</p>
-              <button
-                onClick={() => {
-                  setEditingShowId(null);
-                  // Initialize roles
-                  const initialRoles: Record<string, number> = {};
-                  roles?.forEach(role => {
-                    initialRoles[role.name] = 0;
-                  });
-                  setFormData({
-                    name: "",
-                    date: "",
-                    startTime: "",
-                    openDate: "",
-                    closeDate: "",
-                    roles: initialRoles
-                  });
-                  setShowForm(true);
-                }}
-                className="btn-primary"
-                disabled={!roles || roles.length === 0}
-              >
-                {!roles || roles.length === 0 ? "Maak eerst functies aan" : "Eerste Show Aanmaken"}
-              </button>
             </div>
-          )}
+          ))}
         </div>
+
+        {shows && shows.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-brand-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-8 h-8 bg-brand-primary rounded-lg"></div>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Geen shows gevonden</h3>
+            <p className="text-gray-600 mb-6">Begin met het aanmaken van je eerste show</p>
+            <button
+              onClick={() => {
+                setEditingShowId(null);
+                const initialRoles: Record<string, number> = {};
+                roles?.forEach(role => {
+                  initialRoles[role.name] = 0;
+                });
+                setFormData({
+                  name: "",
+                  date: "",
+                  startTime: "",
+                  openDate: "",
+                  closeDate: "",
+                  roles: initialRoles
+                });
+                setShowForm(true);
+              }}
+              className="btn-primary"
+              disabled={!roles || roles.length === 0}
+            >
+              {!roles || roles.length === 0 ? "Maak eerst functies aan" : "Eerste Show Aanmaken"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

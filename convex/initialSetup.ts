@@ -3,13 +3,24 @@ import { v } from "convex/values";
 
 // Check if any super admin exists
 export const hasSuperAdmin = query({
+  args: {},
   handler: async (ctx) => {
     const existingSuperAdmin = await ctx.db
       .query("userRoles")
       .filter((q) => q.eq(q.field("role"), "superadmin"))
       .first();
     
-    return !!existingSuperAdmin;
+    if (existingSuperAdmin) {
+      return true;
+    }
+    
+    // Also check if there's a pending super admin setup
+    const pendingSetup = await ctx.db
+      .query("organizationSettings")
+      .withIndex("by_key", (q) => q.eq("key", "pending_superadmin_email"))
+      .unique();
+    
+    return !!pendingSetup;
   },
 });
 
@@ -30,28 +41,27 @@ export const createFirstSuperAdmin = mutation({
       throw new Error("Er bestaat al een super admin");
     }
     
-    const existingUsers = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", args.email))
-      .collect();
+    // Check if there's already a pending super admin setup
+    const existingSetup = await ctx.db
+      .query("organizationSettings")
+      .withIndex("by_key", (q) => q.eq("key", "pending_superadmin_email"))
+      .unique();
     
-    if (existingUsers.length > 0) {
-      throw new Error("Gebruiker bestaat al");
+    if (existingSetup) {
+      throw new Error("Er is al een super admin setup in behandeling");
     }
     
-    // Create the first super admin user record
-    const newUserId = await ctx.db.insert("users", {
-      email: args.email,
-      name: args.name,
-      emailVerificationTime: Date.now(),
+    // Store the email for the pending super admin (don't create user record yet)
+    await ctx.db.insert("organizationSettings", {
+      key: "pending_superadmin_email",
+      value: args.email,
     });
     
-    // Assign super admin role
-    await ctx.db.insert("userRoles", {
-      userId: newUserId,
-      role: "superadmin",
+    await ctx.db.insert("organizationSettings", {
+      key: "pending_superadmin_name",
+      value: args.name,
     });
     
-    return newUserId;
+    return { success: true, email: args.email };
   },
 });

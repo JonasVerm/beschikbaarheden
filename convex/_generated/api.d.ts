@@ -16,6 +16,7 @@ import type {
 import type * as adminHelpers from "../adminHelpers.js";
 import type * as assignments from "../assignments.js";
 import type * as auth from "../auth.js";
+import type * as authCallbacks from "../authCallbacks.js";
 import type * as availability from "../availability.js";
 import type * as cleanup from "../cleanup.js";
 import type * as groups from "../groups.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   adminHelpers: typeof adminHelpers;
   assignments: typeof assignments;
   auth: typeof auth;
+  authCallbacks: typeof authCallbacks;
   availability: typeof availability;
   cleanup: typeof cleanup;
   groups: typeof groups;

@@ -80,7 +80,7 @@ export default function App() {
         
         <Unauthenticated>
           {hasSuperAdmin === false ? (
-            <InitialSetup />
+            <InitialSetup onSetupComplete={() => setShowAdminLogin(true)} />
           ) : needsPasswordVerification ? (
             <PasswordPrompt 
               onPasswordVerified={() => setIsPasswordVerified(true)} 

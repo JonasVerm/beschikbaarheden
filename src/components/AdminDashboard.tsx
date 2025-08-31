@@ -8,10 +8,11 @@ import { RoleManager } from "./RoleManager";
 import { GroupManager } from "./GroupManager";
 import { OrganizationSettings } from "./OrganizationSettings";
 import { DatabaseCleanup } from "./DatabaseCleanup";
+import { AdminPasswordChange } from "./AdminPasswordChange";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-type TabType = 'shows' | 'people' | 'assignments' | 'admins' | 'roles' | 'groups' | 'roleConfig' | 'settings' | 'cleanup';
+type TabType = 'shows' | 'people' | 'assignments' | 'admins' | 'roles' | 'groups' | 'roleConfig' | 'settings' | 'cleanup' | 'password';
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('shows');
@@ -26,6 +27,7 @@ export function AdminDashboard() {
     { id: 'groups' as TabType, name: 'Groepen', description: 'Beheer groepen' },
     { id: 'roleConfig' as TabType, name: 'Start Tijden', description: 'Functie start tijden' },
     { id: 'settings' as TabType, name: 'Instellingen', description: 'Organisatie instellingen' },
+    { id: 'password' as TabType, name: 'Wachtwoord', description: 'Wijzig wachtwoord' },
     ...(isSuperAdmin ? [
       { id: 'admins' as TabType, name: 'Admins', description: 'Beheer administrators' },
       { id: 'cleanup' as TabType, name: 'Database', description: 'Database beheer' }
@@ -48,6 +50,8 @@ export function AdminDashboard() {
         return <RoleConfigManager />;
       case 'settings':
         return <OrganizationSettings />;
+      case 'password':
+        return <AdminPasswordChange />;
       case 'admins':
         return isSuperAdmin ? <AdminManager /> : null;
       case 'cleanup':

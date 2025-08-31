@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
-export function InitialSetup() {
+interface Props {
+  onSetupComplete: () => void;
+}
+
+export function InitialSetup({ onSetupComplete }: Props) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -18,13 +22,18 @@ export function InitialSetup() {
     setMessage("");
 
     try {
-      await createFirstSuperAdmin({
+      const result = await createFirstSuperAdmin({
         email: email.trim(),
         name: name.trim(),
       });
-      setMessage(`Eerste super admin aangemaakt voor ${email.trim()}. Je kunt nu registreren via de inlogpagina met dit e-mailadres.`);
+      setMessage(`Eerste super admin setup voltooid voor ${email.trim()}. Je kunt nu registreren via de inlogpagina met dit e-mailadres.`);
       setEmail("");
       setName("");
+      
+      // Automatically switch to admin login after 2 seconds
+      setTimeout(() => {
+        onSetupComplete();
+      }, 2000);
     } catch (error) {
       setMessage(`Fout: ${error}`);
     } finally {
