@@ -75,7 +75,9 @@ export const getAvailableForPerson = query({
       }
       // Handle legacy timestamp format
       if (show.openTime && show.closeTime) {
-        return now >= show.openTime && now <= show.closeTime;
+        const openTime = typeof show.openTime === 'string' ? parseInt(show.openTime) : show.openTime;
+        const closeTime = typeof show.closeTime === 'string' ? parseInt(show.closeTime) : show.closeTime;
+        return now >= openTime && now <= closeTime;
       }
       // If no availability dates set, show is always open
       return true;
@@ -171,9 +173,11 @@ export const getAllShowsForPerson = query({
           availabilityStatus = 'closed';
         }
       } else if (show.openTime && show.closeTime) {
-        if (now < show.openTime) {
+        const openTime = typeof show.openTime === 'string' ? parseInt(show.openTime) : show.openTime;
+        const closeTime = typeof show.closeTime === 'string' ? parseInt(show.closeTime) : show.closeTime;
+        if (now < openTime) {
           availabilityStatus = 'not_yet_open';
-        } else if (now > show.closeTime) {
+        } else if (now > closeTime) {
           availabilityStatus = 'closed';
         }
       }

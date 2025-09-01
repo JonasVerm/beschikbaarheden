@@ -31,6 +31,7 @@ export const create = mutation({
       openDate: args.openDate,
       closeDate: args.closeDate,
       roles: args.roles,
+      isActive: true,
     });
 
     // Create shifts for each role with the specified number of people
@@ -227,6 +228,7 @@ export const importFromExcel = mutation({
           openDate: showData.openDate,
           closeDate: showData.closeDate,
           roles: showData.roles,
+          isActive: true,
         });
         
         console.log('Created show with ID:', showId);

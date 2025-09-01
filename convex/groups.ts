@@ -19,21 +19,21 @@ export const initializeDefaultGroups = mutation({
         displayName: "Front Team", 
         description: "Front of house medewerkers", 
         color: "#3B82F6", 
-        isActive: true 
+        isActive: true,
       },
       { 
         name: "bar-team", 
         displayName: "Bar Team", 
         description: "Bar medewerkers", 
         color: "#10B981", 
-        isActive: true 
+        isActive: true
       },
       { 
         name: "tech-team", 
         displayName: "Tech Team", 
         description: "Technische medewerkers", 
         color: "#8B5CF6", 
-        isActive: true 
+        isActive: true
       },
     ];
     

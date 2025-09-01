@@ -32,6 +32,9 @@ export function MonthlyAssignments() {
     year: currentDate.getFullYear(),
     month: currentDate.getMonth() + 1,
   });
+
+  // Get roles for Excel export
+  const allRoles = useQuery(api.roles.listActive);
   
   const autoAssignStaff = useMutation(api.assignments.autoAssignStaffForMonth);
   const assignPerson = useMutation(api.shifts.assignPerson);
@@ -115,19 +118,50 @@ export function MonthlyAssignments() {
       return;
     }
 
-    // Prepare data for Excel
-    const excelData: any[] = [];
-    
-    // Get all unique roles from all shifts
-    const allRoles = new Set<string>();
-    assignmentData.shows.forEach(show => {
-      show.shifts.forEach(shift => {
-        allRoles.add(shift.role);
-      });
-    });
-    const sortedRoles = Array.from(allRoles).sort();
+    if (!allRoles || allRoles.length === 0) {
+      toast.error('Geen functies gevonden voor export');
+      return;
+    }
 
-    // Add header row: Show name, Date, Start time, then one column per role
+    // Get role order from localStorage (set by RoleManager)
+    const storedOrder = localStorage.getItem('roleOrder');
+    let sortedRoles: string[];
+    
+    if (storedOrder) {
+      try {
+        const roleOrder = JSON.parse(storedOrder);
+        // Map role IDs to role display names, maintaining the order
+        sortedRoles = roleOrder
+          .map((id: string) => {
+            const role = allRoles.find(role => role._id === id);
+            return role ? (role.displayName || role.name) : null;
+          })
+          .filter(Boolean);
+        
+        // Add any roles that weren't in the stored order
+        const remainingRoles = allRoles
+          .filter(role => !sortedRoles.includes(role.displayName || role.name))
+          .map(role => role.displayName || role.name);
+        sortedRoles = [...sortedRoles, ...remainingRoles];
+      } catch (error) {
+        // Fallback to default order
+        sortedRoles = allRoles.map(role => role.displayName || role.name);
+      }
+    } else {
+      // Fallback to default order
+      sortedRoles = allRoles.map(role => role.displayName || role.name);
+    }
+
+    // Create mapping from role name to display name
+    const roleNameToDisplayName: Record<string, string> = {};
+    allRoles.forEach(role => {
+      roleNameToDisplayName[role.name] = role.displayName || role.name;
+    });
+
+    // Prepare data for Excel using the ordered roles
+    const excelData: any[] = [];
+
+    // Add header row: Show name, Date, Start time, then one column per role in order
     const headerRow = ['Voorstelling', 'Datum', 'Starttijd', ...sortedRoles];
     excelData.push(headerRow);
 
@@ -150,10 +184,12 @@ export function MonthlyAssignments() {
         const position = shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 ? ` (#${shift.position})` : '';
         const fullAssignment = assignedName + position;
         
-        if (!roleAssignments[shift.role]) {
-          roleAssignments[shift.role] = [];
+        // Use display name for the assignment mapping
+        const roleDisplayName = roleNameToDisplayName[shift.role] || shift.role;
+        if (!roleAssignments[roleDisplayName]) {
+          roleAssignments[roleDisplayName] = [];
         }
-        roleAssignments[shift.role].push(fullAssignment);
+        roleAssignments[roleDisplayName].push(fullAssignment);
       });
       
       // Create the row data
@@ -163,7 +199,7 @@ export function MonthlyAssignments() {
         show.startTime
       ];
       
-      // Add assignments for each role (join multiple assignments with comma)
+      // Add assignments for each role in the defined order
       sortedRoles.forEach(role => {
         const assignments = roleAssignments[role];
         rowData.push(assignments.length > 0 ? assignments.join(', ') : '');
@@ -193,7 +229,7 @@ export function MonthlyAssignments() {
 
     // Save file
     XLSX.writeFile(wb, filename);
-    toast.success("Excel bestand gedownload!");
+    toast.success("Excel bestand gedownload! Kolommen zijn geordend volgens de volgorde in Functies beheren.");
   };
 
   const nextMonth = () => {

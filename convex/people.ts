@@ -55,6 +55,7 @@ export const create = mutation({
       name: args.name,
       roles: args.roles,
       groupId: args.groupId,
+      isActive: true,
     });
   },
 });

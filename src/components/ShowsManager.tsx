@@ -244,7 +244,8 @@ export function ShowsManager() {
         // Build roles object dynamically from available roles
         const rolesObj: Record<string, number> = {};
         roles?.forEach(role => {
-          rolesObj[role.name] = Number(row[role.name] || row[role.displayName] || 0);
+          const displayName = role.displayName || role.name;
+          rolesObj[role.name] = Number(row[role.name] || row[displayName] || 0);
         });
         
         return {

@@ -192,10 +192,9 @@ export function PeopleManager() {
                           : 'border-gray-200 hover:border-brand-primary hover:bg-brand-light/50'
                       }`}
                     >
-                      <div className="font-semibold">{role.displayName}</div>
-                      <div className="text-xs text-gray-500 mt-1">{role.name}</div>
-                      {role.description && (
-                        <div className="text-xs text-gray-400 mt-1">{role.description}</div>
+                      <div className="font-semibold">{role.displayName || role.name}</div>
+                      {role.displayName && (
+                        <div className="text-xs text-gray-500 mt-1">{role.name}</div>
                       )}
                     </button>
                   ))}
