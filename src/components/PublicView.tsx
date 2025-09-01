@@ -328,25 +328,25 @@ export function PublicView() {
     const pendingPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === pendingPersonId);
     
     return (
-      <div className="max-w-md mx-auto">
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-          <div className="text-center mb-8">
+      <div className="max-w-md mx-auto px-4">
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
+          <div className="text-center mb-6 md:mb-8">
             <div className="flex justify-center mb-4">
               <img 
                 src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
                 alt="Capitole Gent Logo"
-                className="h-16 w-auto object-contain rounded-lg shadow-md"
+                className="h-12 md:h-16 w-auto object-contain rounded-lg shadow-md"
               />
             </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: '#161616' }}>Bevestig je identiteit</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl md:text-2xl font-bold mb-2" style={{ color: '#161616' }}>Bevestig je identiteit</h2>
+            <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">
               Je hebt <span className="font-semibold">{pendingPerson?.name}</span> geselecteerd.
               <br />
               Voer je voornaam in om te bevestigen.
             </p>
           </div>
           
-          <form onSubmit={(e) => { e.preventDefault(); handlePasswordVerification(); }} className="space-y-6">
+          <form onSubmit={(e) => { e.preventDefault(); handlePasswordVerification(); }} className="space-y-4 md:space-y-6">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Voornaam
@@ -355,17 +355,17 @@ export function PublicView() {
                 type="text"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-200 text-lg md:text-base"
                 placeholder="Voer je voornaam in..."
                 autoFocus
                 required
               />
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="submit"
-                className="flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg"
+                className="flex-1 py-4 md:py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg text-lg md:text-base"
                 style={{ backgroundColor: '#FAE682', color: '#161616' }}
               >
                 Bevestigen
@@ -376,7 +376,7 @@ export function PublicView() {
                   setPendingPersonId(null);
                   setPasswordInput("");
                 }}
-                className="flex-1 py-3 px-6 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200"
+                className="flex-1 py-4 md:py-3 px-6 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200 text-lg md:text-base"
               >
                 Annuleren
               </button>
@@ -389,17 +389,17 @@ export function PublicView() {
 
   if (!selectedPersonId) {
     return (
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <img 
                 src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
                 alt="Capitole Gent Logo"
-                className="h-20 w-auto object-contain rounded-lg shadow-md"
+                className="h-16 md:h-20 w-auto object-contain rounded-lg shadow-md"
               />
             </div>
-            <h2 className="text-3xl font-bold" style={{ color: '#161616' }}>Selecteer je naam</h2>
+            <h2 className="text-2xl md:text-3xl font-bold" style={{ color: '#161616' }}>Selecteer je naam</h2>
           </div>
           
           {peopleByGroup && peopleByGroup.length > 0 ? (
@@ -417,15 +417,15 @@ export function PublicView() {
                       {groupData.group.displayName}
                     </h3>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {groupData.people.map((person) => (
                       <button
                         key={person._id}
                         onClick={() => handlePersonSelection(person._id)}
-                        className="p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
+                        className="p-6 md:p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
                         style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
                       >
-                        <div className="font-semibold text-base group-hover:text-lg transition-all duration-200" style={{ color: '#161616' }}>
+                        <div className="font-semibold text-lg md:text-base group-hover:text-xl md:group-hover:text-lg transition-all duration-200" style={{ color: '#161616' }}>
                           {person.name}
                         </div>
                       </button>
@@ -452,11 +452,11 @@ export function PublicView() {
 
   if (selectedShow) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-          <div className="flex justify-between items-start mb-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 md:mb-8">
             <div>
-              <h2 className="text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedShow.name}</h2>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedShow.name}</h2>
               <div className="flex items-center space-x-2 text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -492,19 +492,20 @@ export function PublicView() {
             </div>
             <button
               onClick={() => setSelectedShow(null)}
-              className="px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
               style={{ backgroundColor: '#FAE682', color: '#161616' }}
             >
-              ← Terug naar Kalender
+              <span className="md:hidden">← Terug</span>
+              <span className="hidden md:inline">← Terug naar Kalender</span>
             </button>
           </div>
 
           <div className="space-y-3">
             {selectedShow.shifts.map((shift) => (
-              <div key={shift._id} className={`flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 ${
+              <div key={shift._id} className={`flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 gap-4 md:gap-0 ${
                 shift.availabilityStatus !== 'open' ? 'opacity-60' : ''
               }`}>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4 w-full md:w-auto">
                   {shift.startTime && (
                     <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg text-white font-bold text-sm" style={{ backgroundColor: '#161616' }}>
                       <div className="text-xs opacity-75">START</div>
@@ -512,7 +513,7 @@ export function PublicView() {
                     </div>
                   )}
                   <div>
-                    <div className="font-semibold text-lg" style={{ color: '#161616' }}>
+                    <div className="font-semibold text-xl md:text-lg" style={{ color: '#161616' }}>
                       {shift.role}
                       {shift.hasUnrespondedShifts && shift.availabilityStatus === 'open' && (
                         <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full animate-pulse">
@@ -532,7 +533,7 @@ export function PublicView() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center justify-center md:justify-end space-x-2 md:space-x-3 w-full md:w-auto">
                   {shift.availabilityStatus === 'open' ? (
                     <>
                       {(() => {
@@ -541,11 +542,11 @@ export function PublicView() {
                           : shift.availability;
                         
                         return (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 md:space-x-3">
                             {/* Available Button */}
                             <button
                               onClick={() => handleAvailabilityChange(shift._id, displayAvailability === true ? null : true)}
-                              className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
+                              className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
                                 displayAvailability === true
                                   ? "text-white shadow-green-200"
                                   : "border-2 border-gray-200 hover:border-green-300 bg-white hover:bg-green-50"
@@ -553,7 +554,7 @@ export function PublicView() {
                               style={displayAvailability === true ? { backgroundColor: '#22c55e' } : {}}
                               title={displayAvailability === true ? "Beschikbaar - klik om te wijzigen" : "Klik om beschikbaar te zijn"}
                             >
-                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                               </svg>
                             </button>
@@ -561,7 +562,7 @@ export function PublicView() {
                             {/* Not Available Button */}
                             <button
                               onClick={() => handleAvailabilityChange(shift._id, displayAvailability === false ? null : false)}
-                              className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
+                              className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
                                 displayAvailability === false
                                   ? "text-white shadow-red-200"
                                   : "border-2 border-gray-200 hover:border-red-300 bg-white hover:bg-red-50"
@@ -569,14 +570,14 @@ export function PublicView() {
                               style={displayAvailability === false ? { backgroundColor: '#ef4444' } : {}}
                               title={displayAvailability === false ? "Niet beschikbaar - klik om te wijzigen" : "Klik om niet beschikbaar te zijn"}
                             >
-                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                              <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                               </svg>
                             </button>
                           </div>
                         );
                       })()}
-                      <div className="text-sm min-w-[120px]">
+                      <div className="text-sm md:text-sm min-w-[100px] md:min-w-[120px] text-center md:text-left">
                         {(() => {
                           const displayAvailability = optimisticAvailability.has(shift._id) 
                             ? optimisticAvailability.get(shift._id) 
@@ -607,11 +608,11 @@ export function PublicView() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 mb-6">
-        <div className="flex justify-between items-start mb-6">
+    <div className="max-w-6xl mx-auto px-4">
+      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
           <div>
-            <h2 className="text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedPerson?.name}</h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedPerson?.name}</h2>
             <div className="flex items-center space-x-2 text-gray-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -624,36 +625,39 @@ export function PublicView() {
               setSelectedPersonId(null);
               setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
             }}
-            className="px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md"
+            className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
             style={{ backgroundColor: '#FAE682', color: '#161616' }}
           >
-            Persoon Wijzigen
+            <span className="md:hidden">Wijzigen</span>
+            <span className="hidden md:inline">Persoon Wijzigen</span>
           </button>
         </div>
         
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-6 md:mb-8 gap-2">
           <button
             onClick={prevMonth}
-            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0"
             style={{ backgroundColor: '#161616' }}
           >
-            ← Vorige
+            <span className="md:hidden">←</span>
+            <span className="hidden md:inline">← Vorige</span>
           </button>
-          <h3 className="text-2xl font-bold" style={{ color: '#161616' }}>{monthName}</h3>
+          <h3 className="text-lg md:text-2xl font-bold text-center flex-1 px-2" style={{ color: '#161616' }}>{monthName}</h3>
           <button
             onClick={nextMonth}
-            className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0"
             style={{ backgroundColor: '#161616' }}
           >
-            Volgende →
+            <span className="md:hidden">→</span>
+            <span className="hidden md:inline">Volgende →</span>
           </button>
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 mb-4">
+        <div className="grid grid-cols-7 gap-1 mb-4 text-xs md:text-sm">
           {/* Week day headers */}
           {weekDays.map(day => (
-            <div key={day} className="p-2 text-center font-semibold text-gray-600" style={{ backgroundColor: '#FAE682' }}>
+            <div key={day} className="p-1 md:p-2 text-center font-semibold text-gray-600 text-xs md:text-sm" style={{ backgroundColor: '#FAE682' }}>
               {day}
             </div>
           ))}
@@ -662,7 +666,7 @@ export function PublicView() {
           {calendarDays.map((calDay, index) => (
             <div
               key={index}
-              className={`min-h-[120px] p-2 border-2 transition-all duration-200 ${
+              className={`min-h-[80px] md:min-h-[120px] p-1 md:p-2 border-2 transition-all duration-200 ${
                 !calDay.isCurrentMonth 
                   ? 'bg-gray-100 text-gray-400 border-gray-200' 
                   : calDay.shows.length > 0 
@@ -689,14 +693,14 @@ export function PublicView() {
                   <button
                     key={show._id}
                     onClick={() => setSelectedShow(show)}
-                    className="w-full text-left p-2 text-xs text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg"
+                    className="w-full text-left p-1 md:p-2 text-xs text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg"
                     style={getShowStyle(show)}
                     disabled={show.availabilityStatus === 'closed' || show.availabilityStatus === 'not_yet_open'}
                   >
-                    <div className="font-medium truncate">{show.name}</div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span style={{ color: '#FAE682' }}>{show.startTime}</span>
-                      <div className={`w-2 h-2 rounded-full ${
+                    <div className="font-medium truncate text-xs md:text-sm hidden md:block">{show.name}</div>
+                    <div className="flex items-center justify-between mt-1 hidden md:flex">
+                      <span className="text-xs" style={{ color: '#FAE682' }}>{show.startTime}</span>
+                      <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
                         show.availabilityStatus === 'open' 
                           ? show.hasUnrespondedShifts 
                             ? 'bg-red-400 animate-pulse' 
@@ -704,8 +708,18 @@ export function PublicView() {
                           : 'bg-gray-400'
                       }`}></div>
                     </div>
-                    <div className="text-xs opacity-75 mt-1">
+                    <div className="text-xs opacity-75 mt-1 hidden md:block">
                       {getShowStatusText(show)}
+                    </div>
+                    {/* Mobile: Just show colored indicator */}
+                    <div className="md:hidden w-full h-full flex items-center justify-center">
+                      <div className={`w-4 h-4 rounded-full ${
+                        show.availabilityStatus === 'open' 
+                          ? show.hasUnrespondedShifts 
+                            ? 'bg-red-400 animate-pulse' 
+                            : 'bg-green-400'
+                          : 'bg-gray-400'
+                      }`}></div>
                     </div>
                   </button>
                 ))}
