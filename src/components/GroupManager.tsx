@@ -123,14 +123,6 @@ export function GroupManager() {
           <p className="text-gray-600">Organiseer medewerkers in groepen voor betere overzicht</p>
         </div>
         <div className="flex gap-3">
-          {(!groups || groups.length === 0) && (
-            <button
-              onClick={handleInitializeDefaults}
-              className="btn-secondary"
-            >
-              Standaard Groepen Aanmaken
-            </button>
-          )}
           <button
             onClick={() => {
               setEditingGroupId(null);

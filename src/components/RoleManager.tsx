@@ -267,7 +267,7 @@ export function RoleManager() {
                 type="text"
                 value={newRoleName}
                 onChange={(e) => setNewRoleName(e.target.value)}
-                placeholder="bijv. tech, sound, light..."
+                placeholder="bijv. FA, BA, FOH ..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 required
               />
@@ -281,7 +281,6 @@ export function RoleManager() {
                 type="text"
                 value={newRoleDisplayName}
                 onChange={(e) => setNewRoleDisplayName(e.target.value)}
-                placeholder="bijv. Technicus, Geluidstechnicus..."
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
               <p className="text-xs text-gray-500 mt-1">Wordt getoond aan gebruikers</p>
