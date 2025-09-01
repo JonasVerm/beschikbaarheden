@@ -56,7 +56,7 @@ export const getRoleConfigurations = query({
         _id: existingConfig?._id,
         role: role.name,
         displayName: role.displayName,
-        hoursBeforeShow: existingConfig?.hoursBeforeShow || DEFAULT_ROLE_CONFIGS[role.name as keyof typeof DEFAULT_ROLE_CONFIGS] || 2.0,
+        hoursBeforeShow: existingConfig?.hoursBeforeShow !== undefined ? existingConfig.hoursBeforeShow : (DEFAULT_ROLE_CONFIGS[role.name as keyof typeof DEFAULT_ROLE_CONFIGS] || 2.0),
         isConfigured: !!existingConfig,
       };
     });

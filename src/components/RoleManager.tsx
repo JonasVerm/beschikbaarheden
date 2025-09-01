@@ -3,6 +3,25 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 export function RoleManager() {
   const [showForm, setShowForm] = useState(false);
@@ -18,7 +37,15 @@ export function RoleManager() {
   const updateRole = useMutation(api.roles.update);
   const removeRole = useMutation(api.roles.remove);
   const toggleActive = useMutation(api.roles.toggleActive);
+  const updateOrder = useMutation(api.roles.updateOrder);
   const initializeDefaultRoles = useMutation(api.roles.initializeDefaultRoles);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,13 +119,37 @@ export function RoleManager() {
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id && roles) {
+      const oldIndex = roles.findIndex((role) => role._id === active.id);
+      const newIndex = roles.findIndex((role) => role._id === over?.id);
+
+      const newRoles = arrayMove(roles, oldIndex, newIndex);
+      
+      // Update the order in the database
+      const roleOrders = newRoles.map((role, index) => ({
+        roleId: role._id,
+        order: index,
+      }));
+
+      try {
+        await updateOrder({ roleOrders });
+        toast.success("Functie volgorde bijgewerkt!");
+      } catch (error) {
+        toast.error("Fout bij bijwerken volgorde");
+      }
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Functies Beheren</h2>
-          <p className="text-gray-600">Beheer alle functies en hun instellingen</p>
+          <p className="text-gray-600">Beheer alle functies en hun instellingen. Sleep om de volgorde te wijzigen.</p>
         </div>
         <div className="flex gap-3">
           {roles && roles.length === 0 && (

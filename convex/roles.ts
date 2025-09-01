@@ -32,14 +32,32 @@ export const initializeDefaultRoles = mutation({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("roles").collect();
+    const roles = await ctx.db.query("roles").collect();
+    // Sort by order field, then by name for consistency
+    return roles.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      if (a.order !== undefined) return -1;
+      if (b.order !== undefined) return 1;
+      return a.name.localeCompare(b.name);
+    });
   },
 });
 
 export const listActive = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("roles").filter((q) => q.eq(q.field("isActive"), true)).collect();
+    const roles = await ctx.db.query("roles").filter((q) => q.eq(q.field("isActive"), true)).collect();
+    // Sort by order field, then by name for consistency
+    return roles.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) {
+        return a.order - b.order;
+      }
+      if (a.order !== undefined) return -1;
+      if (b.order !== undefined) return 1;
+      return a.name.localeCompare(b.name);
+    });
   },
 });
 
@@ -134,6 +152,25 @@ export const toggleActive = mutation({
     await ctx.db.patch(args.roleId, {
       isActive: !role.isActive,
     });
+    
+    return { success: true };
+  },
+});
+
+export const updateOrder = mutation({
+  args: {
+    roleOrders: v.array(v.object({
+      roleId: v.id("roles"),
+      order: v.number(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    // Update the order for each role
+    for (const { roleId, order } of args.roleOrders) {
+      await ctx.db.patch(roleId, { order });
+    }
     
     return { success: true };
   },

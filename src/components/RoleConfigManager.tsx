@@ -6,6 +6,7 @@ import { toast } from "sonner";
 export function RoleConfigManager() {
   const [isEditing, setIsEditing] = useState(false);
   const [configs, setConfigs] = useState<Record<string, number>>({});
+  const [inputValues, setInputValues] = useState<Record<string, string>>({});
 
   const roleConfigurations = useQuery(api.roleConfigurations.getRoleConfigurations);
   const updateRoleConfiguration = useMutation(api.roleConfigurations.updateRoleConfiguration);
@@ -14,17 +15,32 @@ export function RoleConfigManager() {
   const handleEdit = () => {
     if (roleConfigurations) {
       const configMap: Record<string, number> = {};
+      const inputMap: Record<string, string> = {};
       roleConfigurations.forEach(config => {
         configMap[config.role] = config.hoursBeforeShow;
+        inputMap[config.role] = formatHours(config.hoursBeforeShow);
       });
       setConfigs(configMap);
+      setInputValues(inputMap);
       setIsEditing(true);
     }
   };
 
   const handleSave = async () => {
     try {
-      for (const [role, hours] of Object.entries(configs)) {
+      // Parse all input values and validate
+      const parsedConfigs: Record<string, number> = {};
+      for (const [role, inputValue] of Object.entries(inputValues)) {
+        const parsed = parseHours(inputValue);
+        if (parsed === null || parsed < 0 || parsed > 24) {
+          toast.error(`Ongeldige tijd voor ${role}: ${inputValue}. Gebruik formaat H:MM (0:00 - 24:00)`);
+          return;
+        }
+        parsedConfigs[role] = parsed;
+      }
+      
+      // Save all configurations
+      for (const [role, hours] of Object.entries(parsedConfigs)) {
         await updateRoleConfiguration({
           role: role,
           hoursBeforeShow: hours,
@@ -32,6 +48,7 @@ export function RoleConfigManager() {
       }
       toast.success("Functie configuraties succesvol bijgewerkt");
       setIsEditing(false);
+      setInputValues({});
     } catch (error) {
       toast.error(`Fout: ${error}`);
     }
@@ -40,6 +57,7 @@ export function RoleConfigManager() {
   const handleCancel = () => {
     setIsEditing(false);
     setConfigs({});
+    setInputValues({});
   };
 
   const handleInitialize = async () => {
@@ -54,15 +72,26 @@ export function RoleConfigManager() {
   const formatHours = (hours: number): string => {
     const wholeHours = Math.floor(hours);
     const minutes = Math.round((hours - wholeHours) * 60);
-    if (minutes === 0) {
-      return `${wholeHours}:00`;
-    }
     return `${wholeHours}:${String(minutes).padStart(2, '0')}`;
   };
 
-  const parseHours = (timeString: string): number => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    return hours + (minutes / 60);
+  const parseHours = (timeString: string): number | null => {
+    try {
+      if (!timeString || !timeString.includes(':')) return null;
+      const [hours, minutes] = timeString.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) return null;
+      return hours + (minutes / 60);
+    } catch {
+      return null;
+    }
+  };
+
+  const handleTimeChange = (role: string, value: string) => {
+    // Store the raw input value for display
+    setInputValues(prev => ({
+      ...prev,
+      [role]: value
+    }));
   };
 
   return (
@@ -118,7 +147,7 @@ export function RoleConfigManager() {
                       )}
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
-                      Start tijd: {formatHours(configs[config.role] || config.hoursBeforeShow)} voor voorstelling
+                      Start tijd: {isEditing && inputValues[config.role] !== undefined ? inputValues[config.role] : formatHours(config.hoursBeforeShow)} voor voorstelling
                     </p>
                   </div>
                   {isEditing && (
@@ -126,16 +155,8 @@ export function RoleConfigManager() {
                       <label className="text-sm font-medium text-gray-700">Start tijd:</label>
                       <input
                         type="text"
-                        value={formatHours(configs[config.role] || config.hoursBeforeShow)}
-                        onChange={(e) => {
-                          const timeValue = e.target.value;
-                          if (timeValue.match(/^\d{1,2}:\d{2}$/)) {
-                            setConfigs(prev => ({
-                              ...prev,
-                              [config.role]: parseHours(timeValue)
-                            }));
-                          }
-                        }}
+                        value={inputValues[config.role] !== undefined ? inputValues[config.role] : formatHours(config.hoursBeforeShow)}
+                        onChange={(e) => handleTimeChange(config.role, e.target.value)}
                         className="w-20 px-3 py-2 border-2 border-gray-200 rounded-lg text-center focus:border-brand-primary focus:ring-4 focus:ring-brand-light outline-none transition-all duration-200"
                         placeholder="H:MM"
                       />

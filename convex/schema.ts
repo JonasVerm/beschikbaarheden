@@ -18,6 +18,7 @@ const applicationTables = {
     displayName: v.string(),
     description: v.optional(v.string()),
     isActive: v.boolean(),
+    order: v.optional(v.number()), // For custom ordering
   }).index("by_name", ["name"]),
   
   people: defineTable({

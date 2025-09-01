@@ -28,6 +28,11 @@ export function MonthlyAssignments() {
     month: currentDate.getMonth() + 1,
   });
   
+  const fairnessData = useQuery(api.assignments.getFairnessReport, {
+    year: currentDate.getFullYear(),
+    month: currentDate.getMonth() + 1,
+  });
+  
   const autoAssignStaff = useMutation(api.assignments.autoAssignStaffForMonth);
   const assignPerson = useMutation(api.shifts.assignPerson);
 
@@ -39,6 +44,12 @@ export function MonthlyAssignments() {
         month: currentDate.getMonth() + 1,
       });
       toast.success(result.message);
+      
+      // Show fairness report if available
+      if (result.fairnessReport && result.fairnessReport.length > 0) {
+        console.log("Fairness Report:", result.fairnessReport);
+        console.log(`Fairness Score: ${result.fairnessScore}% (Min: ${result.minShifts}, Max: ${result.maxShifts} shifts)`);
+      }
     } catch (error) {
       toast.error("Fout bij automatisch toewijzen");
     } finally {
@@ -295,7 +306,7 @@ export function MonthlyAssignments() {
         </div>
 
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-8">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
@@ -351,6 +362,22 @@ export function MonthlyAssignments() {
               </div>
             </div>
           </div>
+
+          {fairnessData && (
+            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl border border-indigo-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-indigo-600 text-sm font-medium">Eerlijkheidsscore</p>
+                  <p className="text-3xl font-bold text-indigo-900">{fairnessData.metrics.fairnessScore}%</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
