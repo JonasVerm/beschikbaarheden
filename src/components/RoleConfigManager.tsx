@@ -120,12 +120,6 @@ export function RoleConfigManager() {
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Geen configuraties gevonden</h3>
             <p className="text-gray-600 mb-6">Maak eerst functies aan voordat je hun start tijden kunt configureren</p>
-            <button
-              onClick={handleInitialize}
-              className="btn-primary"
-            >
-              Standaard Configuraties Aanmaken
-            </button>
           </div>
         )}
 
