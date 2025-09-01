@@ -23,6 +23,7 @@ import type * as groups from "../groups.js";
 import type * as http from "../http.js";
 import type * as initialSetup from "../initialSetup.js";
 import type * as manualSuperAdminFix from "../manualSuperAdminFix.js";
+import type * as messages from "../messages.js";
 import type * as organizationSettings from "../organizationSettings.js";
 import type * as people from "../people.js";
 import type * as roleConfigurations from "../roleConfigurations.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   initialSetup: typeof initialSetup;
   manualSuperAdminFix: typeof manualSuperAdminFix;
+  messages: typeof messages;
   organizationSettings: typeof organizationSettings;
   people: typeof people;
   roleConfigurations: typeof roleConfigurations;

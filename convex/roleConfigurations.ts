@@ -74,7 +74,7 @@ export const updateRoleConfiguration = mutation({
     const existingConfig = await ctx.db
       .query("roleConfigurations")
       .withIndex("by_role", (q) => q.eq("role", args.role))
-      .unique();
+      .first();
     
     if (existingConfig) {
       await ctx.db.patch(existingConfig._id, {

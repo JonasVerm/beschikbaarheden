@@ -1,86 +1,121 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { ShowsManager } from "./ShowsManager";
 import { PeopleManager } from "./PeopleManager";
 import { RoleManager } from "./RoleManager";
-import { ShowsManager } from "./ShowsManager";
-import { MonthlyAssignments } from "./MonthlyAssignments";
-import { StaffOverview } from "./StaffOverview";
-import { GroupManager } from "./GroupManager";
 import { RoleConfigManager } from "./RoleConfigManager";
+import { GroupManager } from "./GroupManager";
+import { StaffOverview } from "./StaffOverview";
 import { OrganizationSettings } from "./OrganizationSettings";
 import { AdminManager } from "./AdminManager";
 import { DatabaseCleanup } from "./DatabaseCleanup";
+import { MessagesManager } from "./MessagesManager";
+import { MonthlyAssignments } from "./MonthlyAssignments";
 
-type Tab = 'people' | 'roles' | 'shows' | 'assignments' | 'staff-overview' | 'groups' | 'role-config' | 'settings' | 'admin' | 'cleanup';
+type TabType = 'shows' | 'people' | 'roles' | 'roleconfig' | 'groups' | 'overview' | 'assignments' | 'messages' | 'settings' | 'admins' | 'cleanup';
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<Tab>('shows');
-  const loggedInUser = useQuery(api.auth.loggedInUser);
+  const [activeTab, setActiveTab] = useState<TabType>('shows');
+  const unreadCount = useQuery(api.messages.getUnreadCount);
+  const currentUser = useQuery(api.auth.loggedInUser);
 
+  // Define all possible tabs with their required admin levels
   const allTabs = [
-    { id: 'shows' as Tab, name: 'Shows Beheren' },
-    { id: 'assignments' as Tab, name: 'Toewijzingen' },
-    { id: 'staff-overview' as Tab, name: 'Personeelsoverzicht' },
-    { id: 'people' as Tab, name: 'Medewerkers' },
-    { id: 'roles' as Tab, name: 'Functies' },
-	  { id: 'role-config' as Tab, name: 'Functie Config' },
-    { id: 'groups' as Tab, name: 'Groepen' },
-    { id: 'settings' as Tab, name: 'Instellingen' },
-    { id: 'admin' as Tab, name: 'Beheerders', superAdminOnly: true },
-    { id: 'cleanup' as Tab, name: 'Database', superAdminOnly: true },
+    { id: 'shows' as TabType, label: 'Shows', adminLevel: 'admin' },
+    { id: 'assignments' as TabType, label: 'Toewijzingen', adminLevel: 'admin' },
+    { id: 'overview' as TabType, label: 'Overzicht', adminLevel: 'admin' },
+    { id: 'people' as TabType, label: 'Medewerkers', adminLevel: 'admin' },
+    { id: 'roles' as TabType, label: 'Functies', adminLevel: 'admin' },
+    { id: 'roleconfig' as TabType, label: 'Functie Tijden', adminLevel: 'admin' },
+    { id: 'groups' as TabType, label: 'Groepen', adminLevel: 'admin' },
+    { id: 'messages' as TabType, label: 'Berichten', badge: unreadCount || 0, adminLevel: 'admin' },
+    { id: 'settings' as TabType, label: 'Instellingen', adminLevel: 'admin' },
+    { id: 'admins' as TabType, label: 'Beheerders', adminLevel: 'superadmin' },
+    { id: 'cleanup' as TabType, label: 'Database', adminLevel: 'superadmin' },
   ];
 
-  // Filter tabs based on user role
+  // Filter tabs based on user's admin level
   const tabs = allTabs.filter(tab => {
-    if (tab.superAdminOnly) {
-      return loggedInUser?.adminRole === 'superadmin';
+    if (tab.adminLevel === 'superadmin') {
+      return currentUser?.adminRole === 'superadmin';
     }
-    return true;
+    return currentUser?.adminRole === 'admin' || currentUser?.adminRole === 'superadmin';
   });
 
-  // Redirect regular admins away from restricted tabs
-  useEffect(() => {
-    if (loggedInUser?.adminRole === 'admin' && (activeTab === 'admin' || activeTab === 'cleanup')) {
-      setActiveTab('shows');
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'shows':
+        return <ShowsManager />;
+      case 'people':
+        return <PeopleManager />;
+      case 'roles':
+        return <RoleManager />;
+      case 'roleconfig':
+        return <RoleConfigManager />;
+      case 'groups':
+        return <GroupManager />;
+      case 'overview':
+        return <StaffOverview />;
+      case 'assignments':
+        return <MonthlyAssignments />;
+      case 'messages':
+        return <MessagesManager />;
+      case 'settings':
+        return <OrganizationSettings />;
+      case 'admins':
+        return <AdminManager />;
+      case 'cleanup':
+        return <DatabaseCleanup />;
+      default:
+        return <ShowsManager />;
     }
-  }, [loggedInUser?.adminRole, activeTab]);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
-      <div className="bg-white shadow-sm border-b border-gray-200 mb-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex space-x-2 overflow-x-auto py-6">
+      <nav className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Horizontal Tab Navigation */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-1 overflow-x-auto py-4">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 whitespace-nowrap border-2 ${
+                className={`relative flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-brand-primary text-brand-dark border-brand-primary shadow-md'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-transparent hover:border-gray-200'
+                    ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent'
                 }`}
               >
-                {tab.name}
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] text-center">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 pb-12">
-        {activeTab === 'people' && <PeopleManager />}
-        {activeTab === 'roles' && <RoleManager />}
-        {activeTab === 'shows' && <ShowsManager />}
-        {activeTab === 'assignments' && <MonthlyAssignments />}
-        {activeTab === 'staff-overview' && <StaffOverview />}
-        {activeTab === 'groups' && <GroupManager />}
-        {activeTab === 'role-config' && <RoleConfigManager />}
-        {activeTab === 'settings' && <OrganizationSettings />}
-        {activeTab === 'admin' && <AdminManager />}
-        {activeTab === 'cleanup' && <DatabaseCleanup />}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {renderContent()}
       </div>
     </div>
   );

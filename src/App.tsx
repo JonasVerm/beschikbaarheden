@@ -42,7 +42,7 @@ export default function App() {
           />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Capitole Gent</h1>
-            <p className="text-sm text-gray-600">Beschikbaarheden</p>
+            <p className="text-sm text-gray-600">mijnbeschikbaarheden.be</p>
           </div>
         </div>
         <div className="flex items-center gap-6">

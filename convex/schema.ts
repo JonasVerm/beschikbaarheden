@@ -92,6 +92,16 @@ const applicationTables = {
     }))),
     isDefault: v.optional(v.boolean()),
   }).index("by_role", ["role"]),
+
+  // Messages from staff to admins
+  messages: defineTable({
+    personId: v.id("people"),
+    personName: v.string(), // Store name for easy display
+    subject: v.string(),
+    content: v.string(),
+    isRead: v.boolean(),
+  }).index("by_person", ["personId"])
+    .index("by_read_status", ["isRead"]),
 };
 
 export default defineSchema({

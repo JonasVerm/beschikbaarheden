@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { MessageForm } from "./MessageForm";
 
 type GroupedShift = {
   _id: Id<"shifts">;
@@ -40,6 +41,7 @@ export function PublicView() {
   const [selectedShow, setSelectedShow] = useState<ShowWithShifts | null>(null);
   const [optimisticAvailability, setOptimisticAvailability] = useState<Map<Id<"shifts">, boolean | null>>(new Map());
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [showMessageForm, setShowMessageForm] = useState(false);
   
   const peopleByGroup = useQuery(api.groups.getPeopleByGroup);
   const roles = useQuery(api.roles.listActive);
@@ -620,17 +622,29 @@ export function PublicView() {
               <span className="font-medium">Functies: {selectedPerson?.roles.join(", ")}</span>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setSelectedPersonId(null);
-              setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
-            }}
-            className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
-            style={{ backgroundColor: '#FAE682', color: '#161616' }}
-          >
-            <span className="md:hidden">Wijzigen</span>
-            <span className="hidden md:inline">Persoon Wijzigen</span>
-          </button>
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <button
+              onClick={() => setShowMessageForm(true)}
+              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base bg-blue-600 text-white flex items-center justify-center space-x-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              <span className="md:hidden">Bericht</span>
+              <span className="hidden md:inline">Bericht versturen</span>
+            </button>
+            <button
+              onClick={() => {
+                setSelectedPersonId(null);
+                setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
+              }}
+              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
+              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+            >
+              <span className="md:hidden">Wijzigen</span>
+              <span className="hidden md:inline">Persoon Wijzigen</span>
+            </button>
+          </div>
         </div>
         
         <div className="flex justify-between items-center mb-6 md:mb-8 gap-2">
@@ -728,6 +742,15 @@ export function PublicView() {
           ))}
         </div>
       </div>
+
+      {/* Message Form Modal */}
+      {showMessageForm && selectedPerson && (
+        <MessageForm
+          personId={selectedPersonId}
+          personName={selectedPerson.name}
+          onClose={() => setShowMessageForm(false)}
+        />
+      )}
     </div>
   );
 }
