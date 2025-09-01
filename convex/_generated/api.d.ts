@@ -31,6 +31,7 @@ import type * as roles from "../roles.js";
 import type * as router from "../router.js";
 import type * as shifts from "../shifts.js";
 import type * as shows from "../shows.js";
+import type * as staffOverview from "../staffOverview.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   router: typeof router;
   shifts: typeof shifts;
   shows: typeof shows;
+  staffOverview: typeof staffOverview;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

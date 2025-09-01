@@ -1,116 +1,86 @@
-import { useState } from "react";
-import { ShowsManager } from "./ShowsManager";
-import { PeopleManager } from "./PeopleManager";
-import { MonthlyAssignments } from "./MonthlyAssignments";
-import { AdminManager } from "./AdminManager";
-import { RoleConfigManager } from "./RoleConfigManager";
-import { RoleManager } from "./RoleManager";
-import { GroupManager } from "./GroupManager";
-import { OrganizationSettings } from "./OrganizationSettings";
-import { DatabaseCleanup } from "./DatabaseCleanup";
-import { AdminPasswordChange } from "./AdminPasswordChange";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { PeopleManager } from "./PeopleManager";
+import { RoleManager } from "./RoleManager";
+import { ShowsManager } from "./ShowsManager";
+import { MonthlyAssignments } from "./MonthlyAssignments";
+import { StaffOverview } from "./StaffOverview";
+import { GroupManager } from "./GroupManager";
+import { RoleConfigManager } from "./RoleConfigManager";
+import { OrganizationSettings } from "./OrganizationSettings";
+import { AdminManager } from "./AdminManager";
+import { DatabaseCleanup } from "./DatabaseCleanup";
 
-type TabType = 'shows' | 'people' | 'assignments' | 'admins' | 'roles' | 'groups' | 'roleConfig' | 'settings' | 'cleanup' | 'password';
+type Tab = 'people' | 'roles' | 'shows' | 'assignments' | 'staff-overview' | 'groups' | 'role-config' | 'settings' | 'admin' | 'cleanup';
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<TabType>('shows');
+  const [activeTab, setActiveTab] = useState<Tab>('shows');
   const loggedInUser = useQuery(api.auth.loggedInUser);
-  const isSuperAdmin = loggedInUser?.adminRole === "superadmin";
 
-  const tabs = [
-    { id: 'shows' as TabType, name: 'Shows', description: 'Beheer voorstellingen' },
-    { id: 'people' as TabType, name: 'Personeel', description: 'Beheer medewerkers' },
-    { id: 'assignments' as TabType, name: 'Planning', description: 'Maandelijkse planning' },
-    { id: 'roles' as TabType, name: 'Functies', description: 'Beheer functies' },
-    { id: 'groups' as TabType, name: 'Groepen', description: 'Beheer groepen' },
-    { id: 'roleConfig' as TabType, name: 'Start Tijden', description: 'Functie start tijden' },
-    { id: 'settings' as TabType, name: 'Instellingen', description: 'Organisatie instellingen' },
-    { id: 'password' as TabType, name: 'Wachtwoord', description: 'Wijzig wachtwoord' },
-    ...(isSuperAdmin ? [
-      { id: 'admins' as TabType, name: 'Admins', description: 'Beheer administrators' },
-      { id: 'cleanup' as TabType, name: 'Database', description: 'Database beheer' }
-    ] : [])
+  const allTabs = [
+    { id: 'shows' as Tab, name: 'Shows Beheren' },
+    { id: 'assignments' as Tab, name: 'Toewijzingen' },
+    { id: 'staff-overview' as Tab, name: 'Personeelsoverzicht' },
+    { id: 'people' as Tab, name: 'Medewerkers' },
+    { id: 'roles' as Tab, name: 'Functies' },
+	  { id: 'role-config' as Tab, name: 'Functie Config' },
+    { id: 'groups' as Tab, name: 'Groepen' },
+    { id: 'settings' as Tab, name: 'Instellingen' },
+    { id: 'admin' as Tab, name: 'Beheerders', superAdminOnly: true },
+    { id: 'cleanup' as Tab, name: 'Database', superAdminOnly: true },
   ];
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'shows':
-        return <ShowsManager />;
-      case 'people':
-        return <PeopleManager />;
-      case 'assignments':
-        return <MonthlyAssignments />;
-      case 'roles':
-        return <RoleManager />;
-      case 'groups':
-        return <GroupManager />;
-      case 'roleConfig':
-        return <RoleConfigManager />;
-      case 'settings':
-        return <OrganizationSettings />;
-      case 'password':
-        return <AdminPasswordChange />;
-      case 'admins':
-        return isSuperAdmin ? <AdminManager /> : null;
-      case 'cleanup':
-        return isSuperAdmin ? <DatabaseCleanup /> : null;
-      default:
-        return <ShowsManager />;
+  // Filter tabs based on user role
+  const tabs = allTabs.filter(tab => {
+    if (tab.superAdminOnly) {
+      return loggedInUser?.adminRole === 'superadmin';
     }
-  };
+    return true;
+  });
+
+  // Redirect regular admins away from restricted tabs
+  useEffect(() => {
+    if (loggedInUser?.adminRole === 'admin' && (activeTab === 'admin' || activeTab === 'cleanup')) {
+      setActiveTab('shows');
+    }
+  }, [loggedInUser?.adminRole, activeTab]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
-      {/* Welcome Section */}
-      <div className="modern-card p-8 gradient-brand text-brand-dark">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Welkom, {loggedInUser?.name || 'Admin'}!
-            </h1>
-            <p className="text-brand-dark/80 text-lg">
-              Beheer het beschikbaarheidssysteem van Capitole Gent
-            </p>
-          </div>
-          <div className="hidden md:block">
-            <div className="w-24 h-24 bg-brand-dark/10 rounded-full flex items-center justify-center">
-              <div className="w-12 h-12 bg-brand-dark rounded-lg"></div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Navigation */}
+      <div className="bg-white shadow-sm border-b border-gray-200 mb-8">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex space-x-2 overflow-x-auto py-6">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 whitespace-nowrap border-2 ${
+                  activeTab === tab.id
+                    ? 'bg-brand-primary text-brand-dark border-brand-primary shadow-md'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border-transparent hover:border-gray-200'
+                }`}
+              >
+                {tab.name}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="modern-card p-2">
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-3 px-6 py-4 rounded-xl transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-brand-primary text-brand-dark shadow-lg transform scale-105'
-                  : 'text-gray-600 hover:bg-brand-light hover:text-brand-dark'
-              }`}
-            >
-              <div className="text-left">
-                <div className="font-semibold">{tab.name}</div>
-                <div className={`text-xs ${
-                  activeTab === tab.id ? 'text-brand-dark/70' : 'text-gray-500'
-                }`}>
-                  {tab.description}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="animate-fade-in-up">
-        {renderContent()}
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-6 pb-12">
+        {activeTab === 'people' && <PeopleManager />}
+        {activeTab === 'roles' && <RoleManager />}
+        {activeTab === 'shows' && <ShowsManager />}
+        {activeTab === 'assignments' && <MonthlyAssignments />}
+        {activeTab === 'staff-overview' && <StaffOverview />}
+        {activeTab === 'groups' && <GroupManager />}
+        {activeTab === 'role-config' && <RoleConfigManager />}
+        {activeTab === 'settings' && <OrganizationSettings />}
+        {activeTab === 'admin' && <AdminManager />}
+        {activeTab === 'cleanup' && <DatabaseCleanup />}
       </div>
     </div>
   );

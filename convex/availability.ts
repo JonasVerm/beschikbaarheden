@@ -44,10 +44,50 @@ export const setAvailability = mutation({
           });
         }
       } else {
-        // Setting to not available - delete the record to represent "no response"
+        // Setting to not available
         if (existingAvailability) {
-          await ctx.db.delete(existingAvailability._id);
+          await ctx.db.patch(existingAvailability._id, {
+            available: false,
+          });
+        } else {
+          await ctx.db.insert("availability", {
+            personId: args.personId,
+            shiftId: roleShift._id,
+            available: false,
+          });
         }
+      }
+    }
+    
+    return { success: true };
+  },
+});
+
+export const clearAvailability = mutation({
+  args: {
+    personId: v.id("people"),
+    shiftId: v.id("shifts"),
+  },
+  handler: async (ctx, args) => {
+    const shift = await ctx.db.get(args.shiftId);
+    if (!shift) throw new Error("Shift not found");
+    
+    const allRoleShifts = await ctx.db
+      .query("shifts")
+      .withIndex("by_show", (q) => q.eq("showId", shift.showId))
+      .filter((q) => q.eq(q.field("role"), shift.role))
+      .collect();
+    
+    for (const roleShift of allRoleShifts) {
+      const existing = await ctx.db
+        .query("availability")
+        .withIndex("by_person_and_shift", (q) => 
+          q.eq("personId", args.personId).eq("shiftId", roleShift._id)
+        )
+        .unique();
+      
+      if (existing) {
+        await ctx.db.delete(existing._id);
       }
     }
     

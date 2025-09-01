@@ -30,6 +30,8 @@ type CalendarDay = {
 
 export function PublicView() {
   const [selectedPersonId, setSelectedPersonId] = useState<Id<"people"> | null>(null);
+  const [pendingPersonId, setPendingPersonId] = useState<Id<"people"> | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedShow, setSelectedShow] = useState<ShowWithShifts | null>(null);
   const [optimisticAvailability, setOptimisticAvailability] = useState<Map<Id<"shifts">, boolean | null>>(new Map());
@@ -143,9 +145,42 @@ export function PublicView() {
   const calendarDays = generateCalendarDays();
   
   const setAvailability = useMutation(api.availability.setAvailability);
+  const clearAvailability = useMutation(api.availability.clearAvailability);
 
-  const handleAvailabilityChange = async (shiftId: Id<"shifts">, toggleValue: boolean) => {
-    console.log("handleAvailabilityChange called", { shiftId, toggleValue, selectedPersonId });
+  // Helper function to get first name from full name
+  const getFirstName = (fullName: string): string => {
+    return fullName.split(' ')[0].toLowerCase();
+  };
+
+  // Handle password verification
+  const handlePasswordVerification = () => {
+    if (!pendingPersonId) return;
+    
+    const pendingPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === pendingPersonId);
+    if (!pendingPerson) return;
+    
+    const expectedFirstName = getFirstName(pendingPerson.name);
+    const enteredPassword = passwordInput.toLowerCase().trim();
+    
+    if (enteredPassword === expectedFirstName) {
+      setSelectedPersonId(pendingPersonId);
+      setPendingPersonId(null);
+      setPasswordInput("");
+      setOptimisticAvailability(new Map());
+    } else {
+      alert("Onjuiste naam. Probeer opnieuw.");
+      setPasswordInput("");
+    }
+  };
+
+  // Handle person selection (now shows password prompt)
+  const handlePersonSelection = (personId: Id<"people">) => {
+    setPendingPersonId(personId);
+    setPasswordInput("");
+  };
+
+  const handleAvailabilityChange = async (shiftId: Id<"shifts">, newStatus: boolean | null) => {
+    console.log("handleAvailabilityChange called", { shiftId, newStatus, selectedPersonId });
     
     if (!selectedPersonId) {
       console.log("No selected person ID");
@@ -160,21 +195,16 @@ export function PublicView() {
     }
     
     console.log("Current shift found:", currentShift);
-    
-    // Determine the new availability state (toggle logic)
-    const currentAvailability = currentShift.availability;
-    const newAvailability = currentAvailability === true ? null : true;
-    
-    console.log("Toggle logic:", { currentAvailability, newAvailability });
+    console.log("Setting availability to:", newStatus);
     
     // Optimistically update the UI for all shifts of the same role
     const newOptimisticAvailability = new Map(optimisticAvailability);
     if (currentShift.allShiftIds) {
       currentShift.allShiftIds.forEach((id: Id<"shifts">) => {
-        newOptimisticAvailability.set(id, newAvailability);
+        newOptimisticAvailability.set(id, newStatus);
       });
     } else {
-      newOptimisticAvailability.set(shiftId, newAvailability);
+      newOptimisticAvailability.set(shiftId, newStatus);
     }
     setOptimisticAvailability(newOptimisticAvailability);
     setForceUpdate(prev => prev + 1);
@@ -182,12 +212,20 @@ export function PublicView() {
     console.log("Updated optimistic availability:", newOptimisticAvailability);
     
     try {
-      await setAvailability({
-        personId: selectedPersonId,
-        shiftId,
-        available: newAvailability === true,
-      });
-      console.log(`Availability set to ${newAvailability} for shift ${shiftId}`);
+      if (newStatus === null) {
+        await clearAvailability({
+          personId: selectedPersonId,
+          shiftId,
+        });
+        console.log(`Availability cleared for shift ${shiftId}`);
+      } else {
+        await setAvailability({
+          personId: selectedPersonId,
+          shiftId,
+          available: newStatus,
+        });
+        console.log(`Availability set to ${newStatus} for shift ${shiftId}`);
+      }
       
       // Don't clear optimistic state automatically - let the database update refresh naturally
 
@@ -219,6 +257,70 @@ export function PublicView() {
 
   const monthName = currentDate.toLocaleString('nl-BE', { month: 'long', year: 'numeric' });
   const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
+  // Show password verification screen
+  if (pendingPersonId) {
+    const pendingPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === pendingPersonId);
+    
+    return (
+      <div className="max-w-md mx-auto">
+        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <img 
+                src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
+                alt="Capitole Gent Logo"
+                className="h-16 w-auto object-contain rounded-lg shadow-md"
+              />
+            </div>
+            <h2 className="text-2xl font-bold mb-2" style={{ color: '#161616' }}>Bevestig je identiteit</h2>
+            <p className="text-gray-600 mb-6">
+              Je hebt <span className="font-semibold">{pendingPerson?.name}</span> geselecteerd.
+              <br />
+              Voer je voornaam in om te bevestigen.
+            </p>
+          </div>
+          
+          <form onSubmit={(e) => { e.preventDefault(); handlePasswordVerification(); }} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Voornaam
+              </label>
+              <input
+                type="text"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-200"
+                placeholder="Voer je voornaam in..."
+                autoFocus
+                required
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                className="flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg"
+                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              >
+                Bevestigen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingPersonId(null);
+                  setPasswordInput("");
+                }}
+                className="flex-1 py-3 px-6 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200"
+              >
+                Annuleren
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedPersonId) {
     return (
@@ -254,10 +356,7 @@ export function PublicView() {
                     {groupData.people.map((person) => (
                       <button
                         key={person._id}
-                        onClick={() => {
-                          setSelectedPersonId(person._id);
-                          setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
-                        }}
+                        onClick={() => handlePersonSelection(person._id)}
                         className="p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
                         style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
                       >
@@ -351,36 +450,54 @@ export function PublicView() {
                       : shift.availability;
                     
                     return (
-                      <button
-                        onClick={() => handleAvailabilityChange(shift._id, !displayAvailability)}
-                        className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
-                          displayAvailability === true
-                            ? "text-white shadow-green-200"
-                            : "border-2 border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                        style={displayAvailability === true ? { backgroundColor: '#22c55e' } : {}}
-                        title={displayAvailability === true ? "Beschikbaar - klik om te wijzigen" : "Klik om beschikbaarheid aan te geven"}
-                      >
-                        {displayAvailability === true ? (
+                      <div className="flex items-center space-x-2">
+                        {/* Available Button */}
+                        <button
+                          onClick={() => handleAvailabilityChange(shift._id, displayAvailability === true ? null : true)}
+                          className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
+                            displayAvailability === true
+                              ? "text-white shadow-green-200"
+                              : "border-2 border-gray-200 hover:border-green-300 bg-white hover:bg-green-50"
+                          }`}
+                          style={displayAvailability === true ? { backgroundColor: '#22c55e' } : {}}
+                          title={displayAvailability === true ? "Beschikbaar - klik om te wijzigen" : "Klik om beschikbaar te zijn"}
+                        >
                           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
-                        ) : (
-                          <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                        )}
-                      </button>
+                        </button>
+
+                        {/* Not Available Button */}
+                        <button
+                          onClick={() => handleAvailabilityChange(shift._id, displayAvailability === false ? null : false)}
+                          className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
+                            displayAvailability === false
+                              ? "text-white shadow-red-200"
+                              : "border-2 border-gray-200 hover:border-red-300 bg-white hover:bg-red-50"
+                          }`}
+                          style={displayAvailability === false ? { backgroundColor: '#ef4444' } : {}}
+                          title={displayAvailability === false ? "Niet beschikbaar - klik om te wijzigen" : "Klik om niet beschikbaar te zijn"}
+                        >
+                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
                     );
                   })()}
-                  <div className="text-sm">
+                  <div className="text-sm min-w-[120px]">
                     {(() => {
                       const displayAvailability = optimisticAvailability.has(shift._id) 
                         ? optimisticAvailability.get(shift._id) 
                         : shift.availability;
-                      return displayAvailability === true ? (
-                        <span className="text-green-600 font-medium">Beschikbaar</span>
-                      ) : (
-                        <span className="text-gray-500">Klik om beschikbaarheid aan te geven</span>
-                      );
+                      
+                      if (displayAvailability === true) {
+                        return <span className="text-green-600 font-medium">Beschikbaar</span>;
+                      } else if (displayAvailability === false) {
+                        return <span className="text-red-600 font-medium">Niet beschikbaar</span>;
+                      } else {
+                        return <span className="text-gray-500">Geen reactie</span>;
+                      }
                     })()}
                   </div>
                 </div>
