@@ -17,18 +17,25 @@ export const autoAssignStaffForMonth = mutation({
       .withIndex("by_date", (q) => q.gte("date", startDate).lte("date", endDate))
       .collect();
     
-    // Get all shifts for the month, grouped by show
-    const showShifts = new Map();
-    for (const show of shows) {
-      const shifts = await ctx.db
-        .query("shifts")
-        .withIndex("by_show", (q) => q.eq("showId", show._id))
-        .collect();
-      showShifts.set(show._id, shifts.map(shift => ({ ...shift, show })));
+    if (shows.length === 0) {
+      return { 
+        success: true, 
+        message: "Geen voorstellingen gevonden voor deze maand",
+        totalAssigned: 0,
+        totalUnassigned: 0,
+        fairnessReport: [],
+        fairnessScore: 100,
+        minShifts: 0,
+        maxShifts: 0
+      };
     }
     
-    // Sort shows by date to assign in chronological order
-    const sortedShows = shows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Process shows in smaller batches to avoid hitting limits
+    const BATCH_SIZE = 5; // Process 5 shows at a time
+    const showBatches = [];
+    for (let i = 0; i < shows.length; i += BATCH_SIZE) {
+      showBatches.push(shows.slice(i, i + BATCH_SIZE));
+    }
     
     // Track assignments per person across all shows for fairness
     const personAssignments = new Map<string, number>();
@@ -37,9 +44,28 @@ export const autoAssignStaffForMonth = mutation({
     let totalAssigned = 0;
     let totalUnassigned = 0;
     
+    // Sort shows by date to assign in chronological order
+    const sortedShows = shows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    // Pre-fetch all people to avoid repeated queries
+    const allPeople = await ctx.db.query("people").collect();
+    const peopleMap = new Map();
+    allPeople.forEach(person => {
+      peopleMap.set(person._id, person);
+    });
+    
     for (const show of sortedShows) {
-      const shifts = showShifts.get(show._id) || [];
+      // Get shifts for this show
+      const shifts = await ctx.db
+        .query("shifts")
+        .withIndex("by_show", (q) => q.eq("showId", show._id))
+        .collect();
+      
       const unassignedShifts = shifts.filter((shift: any) => !shift.personId);
+      
+      if (unassignedShifts.length === 0) {
+        continue; // Skip if all shifts are already assigned
+      }
       
       // Track who is already assigned to this show to avoid double-booking
       const assignedToThisShow = new Set<string>();
@@ -47,17 +73,22 @@ export const autoAssignStaffForMonth = mutation({
         assignedToThisShow.add(shift.personId);
       });
       
-      for (const shift of unassignedShifts) {
-        // Get available people for this shift
-        const availabilities = await ctx.db
-          .query("availability")
-          .filter((q) => q.eq(q.field("shiftId"), shift._id))
-          .collect();
+      // Process shifts in smaller batches
+      const SHIFT_BATCH_SIZE = 10;
+      for (let i = 0; i < unassignedShifts.length; i += SHIFT_BATCH_SIZE) {
+        const shiftBatch = unassignedShifts.slice(i, i + SHIFT_BATCH_SIZE);
         
-        const availablePeople = [];
-        for (const avail of availabilities) {
-          if (avail.available) {
-            const person = await ctx.db.get(avail.personId);
+        for (const shift of shiftBatch) {
+          // Get available people for this shift - limit to reduce reads
+          const availabilities = await ctx.db
+            .query("availability")
+            .withIndex("by_shift", (q) => q.eq("shiftId", shift._id))
+            .filter((q) => q.eq(q.field("available"), true))
+            .take(50); // Limit to first 50 available people
+          
+          const availablePeople = [];
+          for (const avail of availabilities) {
+            const person = peopleMap.get(avail.personId);
             if (person && person.roles.includes(shift.role)) {
               // Only include if not already assigned to this show
               if (!assignedToThisShow.has(person._id)) {
@@ -65,60 +96,60 @@ export const autoAssignStaffForMonth = mutation({
               }
             }
           }
-        }
-        
-        if (availablePeople.length === 0) {
-          totalUnassigned++;
-          continue;
-        }
-        
-        // Enhanced fair assignment algorithm
-        availablePeople.sort((a, b) => {
-          const aCount = personAssignments.get(a._id) || 0;
-          const bCount = personAssignments.get(b._id) || 0;
           
-          // Primary: Sort by total assignments (load balancing)
-          if (aCount !== bCount) {
-            return aCount - bCount;
+          if (availablePeople.length === 0) {
+            totalUnassigned++;
+            continue;
           }
           
-          // Secondary: Sort by number of shows assigned to (spread across shows)
-          const aShowCount = personShowAssignments.get(a._id)?.size || 0;
-          const bShowCount = personShowAssignments.get(b._id)?.size || 0;
-          if (aShowCount !== bShowCount) {
-            return aShowCount - bShowCount;
-          }
+          // Enhanced fair assignment algorithm
+          availablePeople.sort((a, b) => {
+            const aCount = personAssignments.get(a._id) || 0;
+            const bCount = personAssignments.get(b._id) || 0;
+            
+            // Primary: Sort by total assignments (load balancing)
+            if (aCount !== bCount) {
+              return aCount - bCount;
+            }
+            
+            // Secondary: Sort by number of shows assigned to (spread across shows)
+            const aShowCount = personShowAssignments.get(a._id)?.size || 0;
+            const bShowCount = personShowAssignments.get(b._id)?.size || 0;
+            if (aShowCount !== bShowCount) {
+              return aShowCount - bShowCount;
+            }
+            
+            // Tertiary: Random selection for true fairness when all else is equal
+            return Math.random() - 0.5;
+          });
           
-          // Tertiary: Random selection for true fairness when all else is equal
-          return Math.random() - 0.5;
-        });
-        
-        const selectedPerson = availablePeople[0];
-        
-        // Assign the person to this shift
-        await ctx.db.patch(shift._id, {
-          personId: selectedPerson._id,
-        });
-        
-        // Update tracking for fairness
-        assignedToThisShow.add(selectedPerson._id);
-        const currentCount = personAssignments.get(selectedPerson._id) || 0;
-        personAssignments.set(selectedPerson._id, currentCount + 1);
-        
-        // Track show assignments
-        if (!personShowAssignments.has(selectedPerson._id)) {
-          personShowAssignments.set(selectedPerson._id, new Set());
+          const selectedPerson = availablePeople[0];
+          
+          // Assign the person to this shift
+          await ctx.db.patch(shift._id, {
+            personId: selectedPerson._id,
+          });
+          
+          // Update tracking for fairness
+          assignedToThisShow.add(selectedPerson._id);
+          const currentCount = personAssignments.get(selectedPerson._id) || 0;
+          personAssignments.set(selectedPerson._id, currentCount + 1);
+          
+          // Track show assignments
+          if (!personShowAssignments.has(selectedPerson._id)) {
+            personShowAssignments.set(selectedPerson._id, new Set());
+          }
+          personShowAssignments.get(selectedPerson._id)!.add(show._id);
+          
+          totalAssigned++;
         }
-        personShowAssignments.get(selectedPerson._id)!.add(show._id);
-        
-        totalAssigned++;
       }
     }
     
     // Generate fairness report
     const fairnessReport = [];
     for (const [personId, count] of personAssignments.entries()) {
-      const person = await ctx.db.get(personId as any);
+      const person = peopleMap.get(personId);
       if (person && 'name' in person && 'roles' in person) {
         const showCount = personShowAssignments.get(personId)?.size || 0;
         fairnessReport.push({
@@ -166,104 +197,86 @@ export const getMonthlyAssignmentSummary = query({
       .withIndex("by_date", (q) => q.gte("date", startDate).lte("date", endDate))
       .collect();
     
-    // Batch fetch all shifts for all shows at once
-    const allShifts = [];
-    const showShiftsMap = new Map();
-    
-    for (const show of shows) {
-      const shifts = await ctx.db
-        .query("shifts")
-        .withIndex("by_show", (q) => q.eq("showId", show._id))
-        .collect();
-      
-      showShiftsMap.set(show._id, shifts);
-      allShifts.push(...shifts);
+    if (shows.length === 0) {
+      return {
+        shows: [],
+        stats: {
+          totalShifts: 0,
+          assignedShifts: 0,
+          unassignedShifts: 0,
+          assignmentRate: 0
+        }
+      };
     }
     
-    // Batch fetch all people who are assigned to shifts
-    const assignedPersonIds = new Set(allShifts.filter(s => s.personId).map(s => s.personId!));
-    const assignedPeople = new Map();
-    for (const personId of assignedPersonIds) {
-      const person = await ctx.db.get(personId);
-      if (person) {
-        assignedPeople.set(personId, person);
-      }
-    }
+    // Pre-fetch all people to avoid repeated queries
+    const allPeople = await ctx.db.query("people").collect();
+    const peopleMap = new Map();
+    allPeople.forEach(person => {
+      peopleMap.set(person._id, person);
+    });
     
-    // Batch fetch all availability records for all shifts (only available ones)
-    const allAvailabilities = new Map();
-    for (const shift of allShifts) {
-      const availabilities = await ctx.db
-        .query("availability")
-        .withIndex("by_shift", (q) => q.eq("shiftId", shift._id))
-        .filter((q) => q.eq(q.field("available"), true))
-        .collect();
-      
-      allAvailabilities.set(shift._id, availabilities);
-    }
-    
-    // Batch fetch all people who have availability records
-    const availablePersonIds = new Set();
-    for (const availabilities of allAvailabilities.values()) {
-      for (const avail of availabilities) {
-        availablePersonIds.add(avail.personId);
-      }
-    }
-    
-    const availablePeople = new Map();
-    for (const personId of availablePersonIds) {
-      const person = await ctx.db.get(personId as any);
-      if (person) {
-        availablePeople.set(personId, person);
-      }
-    }
-    
-    // Now build the summary
+    // Process shows in batches to avoid hitting limits
     const summary = [];
     let totalShifts = 0;
     let assignedShifts = 0;
     let unassignedShifts = 0;
     
-    for (const show of shows) {
-      const shifts = showShiftsMap.get(show._id) || [];
-      const shiftDetails = [];
+    // Process shows in smaller batches
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < shows.length; i += BATCH_SIZE) {
+      const showBatch = shows.slice(i, i + BATCH_SIZE);
       
-      for (const shift of shifts) {
-        totalShifts++;
-        const assignedPerson = shift.personId ? assignedPeople.get(shift.personId) : null;
+      for (const show of showBatch) {
+        const shifts = await ctx.db
+          .query("shifts")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
         
-        if (assignedPerson) {
-          assignedShifts++;
-        } else {
-          unassignedShifts++;
-        }
+        const shiftDetails = [];
         
-        // Get available people for this shift
-        const availabilities = allAvailabilities.get(shift._id) || [];
-        const shiftAvailablePeople = [];
-        
-        for (const avail of availabilities) {
-          const person = availablePeople.get(avail.personId);
-          if (person && person.roles.includes(shift.role)) {
-            shiftAvailablePeople.push(person);
+        for (const shift of shifts) {
+          totalShifts++;
+          const assignedPerson = shift.personId ? peopleMap.get(shift.personId) : null;
+          
+          if (assignedPerson) {
+            assignedShifts++;
+          } else {
+            unassignedShifts++;
           }
+          
+          // Get available people for this shift - limit to reduce reads
+          const availabilities = await ctx.db
+            .query("availability")
+            .withIndex("by_shift", (q) => q.eq("shiftId", shift._id))
+            .filter((q) => q.eq(q.field("available"), true))
+            .take(20); // Limit to first 20 available people
+          
+          const shiftAvailablePeople = [];
+          
+          for (const avail of availabilities) {
+            const person = peopleMap.get(avail.personId);
+            if (person && person.roles.includes(shift.role)) {
+              shiftAvailablePeople.push(person);
+            }
+          }
+          
+          // Filter out assigned person from available list
+          const unassignedAvailable = shiftAvailablePeople.filter(p => p._id !== shift.personId);
+          
+          shiftDetails.push({
+            ...shift,
+            assignedPerson,
+            availablePeople: unassignedAvailable,
+            hasAvailablePeople: shiftAvailablePeople.length > 0,
+          });
         }
         
-        // Filter out assigned person from available list
-        const unassignedAvailable = shiftAvailablePeople.filter(p => p._id !== shift.personId);
-        
-        shiftDetails.push({
-          ...shift,
-          assignedPerson,
-          availablePeople: unassignedAvailable,
-          hasAvailablePeople: shiftAvailablePeople.length > 0,
+        summary.push({
+          ...show,
+          shifts: shiftDetails,
         });
       }
-      
-      summary.push({
-        ...show,
-        shifts: shiftDetails,
-      });
     }
     
     const result = {
@@ -296,30 +309,56 @@ export const getFairnessReport = query({
       .withIndex("by_date", (q) => q.gte("date", startDate).lte("date", endDate))
       .collect();
     
+    if (shows.length === 0) {
+      return {
+        fairnessReport: [],
+        metrics: {
+          minShifts: 0,
+          maxShifts: 0,
+          avgShifts: 0,
+          fairnessScore: 100,
+          totalPeople: 0
+        }
+      };
+    }
+    
+    // Pre-fetch all people to avoid repeated queries
+    const allPeople = await ctx.db.query("people").collect();
+    const peopleMap = new Map();
+    allPeople.forEach(person => {
+      peopleMap.set(person._id, person);
+    });
+    
     // Track assignments per person
     const personStats = new Map();
     
-    for (const show of shows) {
-      const shifts = await ctx.db
-        .query("shifts")
-        .withIndex("by_show", (q) => q.eq("showId", show._id))
-        .collect();
+    // Process shows in batches
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < shows.length; i += BATCH_SIZE) {
+      const showBatch = shows.slice(i, i + BATCH_SIZE);
       
-      for (const shift of shifts) {
-        if (shift.personId) {
-          const person = await ctx.db.get(shift.personId);
-          if (person) {
-            if (!personStats.has(person._id)) {
-              personStats.set(person._id, {
-                name: person.name,
-                roles: person.roles,
-                totalShifts: 0,
-                shows: new Set()
-              });
+      for (const show of showBatch) {
+        const shifts = await ctx.db
+          .query("shifts")
+          .withIndex("by_show", (q) => q.eq("showId", show._id))
+          .collect();
+        
+        for (const shift of shifts) {
+          if (shift.personId) {
+            const person = peopleMap.get(shift.personId);
+            if (person) {
+              if (!personStats.has(person._id)) {
+                personStats.set(person._id, {
+                  name: person.name,
+                  roles: person.roles,
+                  totalShifts: 0,
+                  shows: new Set()
+                });
+              }
+              const stats = personStats.get(person._id);
+              stats.totalShifts++;
+              stats.shows.add(show._id);
             }
-            const stats = personStats.get(person._id);
-            stats.totalShifts++;
-            stats.shows.add(show._id);
           }
         }
       }
