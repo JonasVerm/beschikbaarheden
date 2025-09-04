@@ -442,17 +442,17 @@ export function PublicView() {
                       {groupData.group.displayName}
                     </h3>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {groupData.people
                       .sort((a, b) => a.name.localeCompare(b.name))
                       .map((person) => (
                         <button
                           key={person._id}
                           onClick={() => handlePersonSelection(person._id)}
-                          className="p-6 md:p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
+                          className="p-8 md:p-6 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group min-h-[80px] md:min-h-[70px] flex items-center justify-center"
                           style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
                         >
-                          <div className="font-semibold text-lg md:text-base group-hover:text-xl md:group-hover:text-lg transition-all duration-200" style={{ color: '#161616' }}>
+                          <div className="font-semibold text-base md:text-sm group-hover:text-lg md:group-hover:text-base transition-all duration-200 leading-tight" style={{ color: '#161616' }}>
                             {person.name}
                           </div>
                         </button>
