@@ -161,8 +161,12 @@ export function MonthlyAssignments() {
     // Prepare data for Excel using the ordered roles
     const excelData: any[] = [];
 
-    // Add header row: Show name, Date, Start time, then one column per role in order
-    const headerRow = ['Voorstelling', 'Datum', 'Starttijd', ...sortedRoles];
+    // Add header row: Show name, Date, Start time, then start time column + assignments column per role
+    const headerRow = ['Voorstelling', 'Datum', 'Starttijd'];
+    sortedRoles.forEach(role => {
+      headerRow.push(`${role} - Starttijd`);
+      headerRow.push(role);
+    });
     excelData.push(headerRow);
 
     // Add data rows
@@ -170,12 +174,14 @@ export function MonthlyAssignments() {
       const [year, month, day] = show.date.split('-').map(Number);
       const localDate = new Date(Date.UTC(year, month - 1, day));
       
-      // Create a map of role assignments for this show
+      // Create a map of role assignments and start times for this show
       const roleAssignments: Record<string, string[]> = {};
+      const roleStartTimes: Record<string, string[]> = {};
       
       // Initialize all roles with empty arrays
       sortedRoles.forEach(role => {
         roleAssignments[role] = [];
+        roleStartTimes[role] = [];
       });
       
       // Fill in the assignments
@@ -188,8 +194,10 @@ export function MonthlyAssignments() {
         const roleDisplayName = roleNameToDisplayName[shift.role] || shift.role;
         if (!roleAssignments[roleDisplayName]) {
           roleAssignments[roleDisplayName] = [];
+          roleStartTimes[roleDisplayName] = [];
         }
         roleAssignments[roleDisplayName].push(fullAssignment);
+        roleStartTimes[roleDisplayName].push(shift.startTime || '');
       });
       
       // Create the row data
@@ -199,9 +207,11 @@ export function MonthlyAssignments() {
         show.startTime
       ];
       
-      // Add assignments for each role in the defined order
+      // Add start times and assignments for each role in the defined order
       sortedRoles.forEach(role => {
         const assignments = roleAssignments[role];
+        const startTimes = roleStartTimes[role];
+        rowData.push(startTimes.length > 0 ? startTimes.join(', ') : '');
         rowData.push(assignments.length > 0 ? assignments.join(', ') : '');
       });
       
@@ -212,12 +222,15 @@ export function MonthlyAssignments() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(excelData);
 
-    // Set column widths - first 3 columns fixed, then dynamic for roles
+    // Set column widths - first 3 columns fixed, then dynamic for start times and roles
     const colWidths = [
       { wch: 25 }, // Show name
       { wch: 12 }, // Date
       { wch: 15 }, // Start time
-      ...sortedRoles.map(() => ({ wch: 20 })) // Role columns
+      ...sortedRoles.flatMap(() => [
+        { wch: 15 }, // Role start time column
+        { wch: 50 }  // Role assignment column (wider)
+      ])
     ];
     ws['!cols'] = colWidths;
 
@@ -612,7 +625,7 @@ export function MonthlyAssignments() {
                         <span>Beschikbare Mensen ({shift.availablePeople.length})</span>
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {shift.availablePeople.map((person) => (
+                        {shift.availablePeople.map((person: any) => (
                           <div key={person._id} className="flex justify-between items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-200">
                             <span className="font-medium text-gray-900">{person.name}</span>
                             <button

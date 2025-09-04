@@ -166,10 +166,9 @@ export const getMonthlyAssignmentSummary = query({
       .withIndex("by_date", (q) => q.gte("date", startDate).lte("date", endDate))
       .collect();
     
-    const summary = [];
-    let totalShifts = 0;
-    let assignedShifts = 0;
-    let unassignedShifts = 0;
+    // Batch fetch all shifts for all shows at once
+    const allShifts = [];
+    const showShiftsMap = new Map();
     
     for (const show of shows) {
       const shifts = await ctx.db
@@ -177,11 +176,61 @@ export const getMonthlyAssignmentSummary = query({
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .collect();
       
+      showShiftsMap.set(show._id, shifts);
+      allShifts.push(...shifts);
+    }
+    
+    // Batch fetch all people who are assigned to shifts
+    const assignedPersonIds = new Set(allShifts.filter(s => s.personId).map(s => s.personId!));
+    const assignedPeople = new Map();
+    for (const personId of assignedPersonIds) {
+      const person = await ctx.db.get(personId);
+      if (person) {
+        assignedPeople.set(personId, person);
+      }
+    }
+    
+    // Batch fetch all availability records for all shifts (only available ones)
+    const allAvailabilities = new Map();
+    for (const shift of allShifts) {
+      const availabilities = await ctx.db
+        .query("availability")
+        .withIndex("by_shift", (q) => q.eq("shiftId", shift._id))
+        .filter((q) => q.eq(q.field("available"), true))
+        .collect();
+      
+      allAvailabilities.set(shift._id, availabilities);
+    }
+    
+    // Batch fetch all people who have availability records
+    const availablePersonIds = new Set();
+    for (const availabilities of allAvailabilities.values()) {
+      for (const avail of availabilities) {
+        availablePersonIds.add(avail.personId);
+      }
+    }
+    
+    const availablePeople = new Map();
+    for (const personId of availablePersonIds) {
+      const person = await ctx.db.get(personId as any);
+      if (person) {
+        availablePeople.set(personId, person);
+      }
+    }
+    
+    // Now build the summary
+    const summary = [];
+    let totalShifts = 0;
+    let assignedShifts = 0;
+    let unassignedShifts = 0;
+    
+    for (const show of shows) {
+      const shifts = showShiftsMap.get(show._id) || [];
       const shiftDetails = [];
       
       for (const shift of shifts) {
         totalShifts++;
-        const assignedPerson = shift.personId ? await ctx.db.get(shift.personId) : null;
+        const assignedPerson = shift.personId ? assignedPeople.get(shift.personId) : null;
         
         if (assignedPerson) {
           assignedShifts++;
@@ -189,30 +238,25 @@ export const getMonthlyAssignmentSummary = query({
           unassignedShifts++;
         }
         
-        // Get all available people for this shift
-        const availabilities = await ctx.db
-          .query("availability")
-          .filter((q) => q.eq(q.field("shiftId"), shift._id))
-          .collect();
+        // Get available people for this shift
+        const availabilities = allAvailabilities.get(shift._id) || [];
+        const shiftAvailablePeople = [];
         
-        const availablePeople = [];
         for (const avail of availabilities) {
-          if (avail.available) {
-            const person = await ctx.db.get(avail.personId);
-            if (person && person.roles.includes(shift.role)) {
-              availablePeople.push(person);
-            }
+          const person = availablePeople.get(avail.personId);
+          if (person && person.roles.includes(shift.role)) {
+            shiftAvailablePeople.push(person);
           }
         }
         
         // Filter out assigned person from available list
-        const unassignedAvailable = availablePeople.filter(p => p._id !== shift.personId);
+        const unassignedAvailable = shiftAvailablePeople.filter(p => p._id !== shift.personId);
         
         shiftDetails.push({
           ...shift,
           assignedPerson,
           availablePeople: unassignedAvailable,
-          hasAvailablePeople: availablePeople.length > 0,
+          hasAvailablePeople: shiftAvailablePeople.length > 0,
         });
       }
       
