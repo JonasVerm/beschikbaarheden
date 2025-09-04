@@ -42,6 +42,7 @@ export function PublicView() {
   const [optimisticAvailability, setOptimisticAvailability] = useState<Map<Id<"shifts">, boolean | null>>(new Map());
   const [forceUpdate, setForceUpdate] = useState(0);
   const [showMessageForm, setShowMessageForm] = useState(false);
+  const [isMarkingUnavailable, setIsMarkingUnavailable] = useState(false);
   
   const peopleByGroup = useQuery(api.groups.getPeopleByGroup);
   const roles = useQuery(api.roles.listActive);
@@ -172,6 +173,7 @@ export function PublicView() {
   
   const setAvailability = useMutation(api.availability.setAvailability);
   const clearAvailability = useMutation(api.availability.clearAvailability);
+  const markRestAsUnavailable = useMutation(api.availability.markRestAsUnavailable);
 
   // Helper function to get first name from full name
   const getFirstName = (fullName: string): string => {
@@ -289,6 +291,27 @@ export function PublicView() {
 
   const monthName = currentDate.toLocaleString('nl-BE', { month: 'long', year: 'numeric' });
   const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
+  const handleMarkRestAsUnavailable = async () => {
+    if (!selectedPersonId) return;
+    const confirmed = confirm("Weet je zeker dat je alle diensten waar je nog geen reactie op hebt gegeven wilt markeren als 'niet beschikbaar'?");
+    if (!confirmed) return;
+    setIsMarkingUnavailable(true);
+    try {
+      const result = await markRestAsUnavailable({
+        personId: selectedPersonId,
+        year: currentDate.getFullYear(),
+        month: currentDate.getMonth() + 1,
+      });
+      alert(result.markedUnavailable > 0 ? `${result.markedUnavailable} diensten gemarkeerd als niet beschikbaar.` : "Geen diensten gevonden.");
+      setOptimisticAvailability(new Map());
+      setForceUpdate(prev => prev + 1);
+    } catch (error) {
+      alert("Fout opgetreden. Probeer opnieuw.");
+    } finally {
+      setIsMarkingUnavailable(false);
+    }
+  };
 
   // Helper function to get show status color and style
   const getShowStyle = (show: ShowWithShifts) => {
@@ -420,18 +443,20 @@ export function PublicView() {
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {groupData.people.map((person) => (
-                      <button
-                        key={person._id}
-                        onClick={() => handlePersonSelection(person._id)}
-                        className="p-6 md:p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
-                        style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
-                      >
-                        <div className="font-semibold text-lg md:text-base group-hover:text-xl md:group-hover:text-lg transition-all duration-200" style={{ color: '#161616' }}>
-                          {person.name}
-                        </div>
-                      </button>
-                    ))}
+                    {groupData.people
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((person) => (
+                        <button
+                          key={person._id}
+                          onClick={() => handlePersonSelection(person._id)}
+                          className="p-6 md:p-4 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group"
+                          style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
+                        >
+                          <div className="font-semibold text-lg md:text-base group-hover:text-xl md:group-hover:text-lg transition-all duration-200" style={{ color: '#161616' }}>
+                            {person.name}
+                          </div>
+                        </button>
+                      ))}
                   </div>
                   {groupData.people.length === 0 && (
                     <p className="text-gray-500 italic text-center py-4">Geen medewerkers in deze groep</p>
@@ -622,12 +647,23 @@ export function PublicView() {
               <span className="font-medium">Functies: {selectedPerson?.roles.join(", ")}</span>
             </div>
           </div>
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <button
+              onClick={handleMarkRestAsUnavailable}
+              disabled={isMarkingUnavailable}
+              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm bg-red-600 text-white flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <span className="md:hidden">{isMarkingUnavailable ? "Bezig..." : "Rest Niet Beschikbaar"}</span>
+              <span className="hidden md:inline">{isMarkingUnavailable ? "Bezig..." : "Rest Markeren als Niet Beschikbaar"}</span>
+            </button>
             <button
               onClick={() => setShowMessageForm(true)}
-              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base bg-blue-600 text-white flex items-center justify-center space-x-2"
+              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm bg-blue-600 text-white flex items-center justify-center space-x-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <span className="md:hidden">Bericht</span>
@@ -638,7 +674,7 @@ export function PublicView() {
                 setSelectedPersonId(null);
                 setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
               }}
-              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
+              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm"
               style={{ backgroundColor: '#FAE682', color: '#161616' }}
             >
               <span className="md:hidden">Wijzigen</span>
