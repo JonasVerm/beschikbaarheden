@@ -61,7 +61,8 @@ export const autoAssignStaffForMonth = mutation({
         .withIndex("by_show", (q) => q.eq("showId", show._id))
         .collect();
       
-      const unassignedShifts = shifts.filter((shift: any) => !shift.personId);
+      // Filter out shifts that are already assigned (either to person or SECU)
+      const unassignedShifts = shifts.filter((shift: any) => !shift.personId && !shift.isSecuAssigned);
       
       if (unassignedShifts.length === 0) {
         continue; // Skip if all shifts are already assigned
@@ -239,7 +240,8 @@ export const getMonthlyAssignmentSummary = query({
           totalShifts++;
           const assignedPerson = shift.personId ? peopleMap.get(shift.personId) : null;
           
-          if (assignedPerson) {
+          // Consider shift assigned if either person is assigned OR SECU is assigned
+          if (assignedPerson || shift.isSecuAssigned) {
             assignedShifts++;
           } else {
             unassignedShifts++;
@@ -250,25 +252,63 @@ export const getMonthlyAssignmentSummary = query({
             .query("availability")
             .withIndex("by_shift", (q) => q.eq("shiftId", shift._id))
             .filter((q) => q.eq(q.field("available"), true))
-            .take(20); // Limit to first 20 available people
+            .take(50); // Increased limit for better admin override support
           
           const shiftAvailablePeople = [];
+          const allAvailablePeople = []; // For admin override
           
           for (const avail of availabilities) {
             const person = peopleMap.get(avail.personId);
-            if (person && person.roles.includes(shift.role)) {
-              shiftAvailablePeople.push(person);
+            if (person && person.isActive !== false) {
+              // Add to all available people for admin override (regardless of role)
+              allAvailablePeople.push(person);
+              
+              // Only add to regular available if they have the right role
+              if (person.roles.includes(shift.role)) {
+                shiftAvailablePeople.push(person);
+              }
             }
           }
           
-          // Filter out assigned person from available list
-          const unassignedAvailable = shiftAvailablePeople.filter(p => p._id !== shift.personId);
+          // Admin override: add people available for other shifts in same show
+          const existingIds = new Set(allAvailablePeople.map(p => p._id));
+          for (const otherShift of shifts) {
+            if (otherShift._id === shift._id) continue;
+            const otherAvails = await ctx.db
+              .query("availability")
+              .withIndex("by_shift", (q) => q.eq("shiftId", otherShift._id))
+              .filter((q) => q.eq(q.field("available"), true))
+              .take(5);
+            
+            for (const avail of otherAvails) {
+              const person = peopleMap.get(avail.personId);
+              if (person && person.isActive !== false && !existingIds.has(person._id)) {
+                allAvailablePeople.push(person);
+                existingIds.add(person._id);
+              }
+            }
+          }
+          
+          // Get all people assigned to shifts in this show
+          const assignedInThisShow = new Set();
+          shifts.forEach(s => {
+            if (s.personId && s._id !== shift._id) { // Don't exclude the person from their own shift
+              assignedInThisShow.add(s.personId);
+            }
+          });
+          
+          // Filter out people assigned to OTHER shifts in this show (but keep the person assigned to THIS shift visible)
+          const unassignedAvailable = shiftAvailablePeople.filter(p => !assignedInThisShow.has(p._id));
+          // Filter out people assigned to OTHER shifts in this show for admin override
+          const unassignedAllAvailable = allAvailablePeople.filter(p => !assignedInThisShow.has(p._id));
           
           shiftDetails.push({
             ...shift,
             assignedPerson,
             availablePeople: unassignedAvailable,
+            allAvailablePeople: unassignedAllAvailable, // For admin override - include all available people except assigned
             hasAvailablePeople: shiftAvailablePeople.length > 0,
+            hasAnyAvailablePeople: unassignedAllAvailable.length > 0, // For admin override - based on filtered list
           });
         }
         
@@ -344,6 +384,7 @@ export const getFairnessReport = query({
           .collect();
         
         for (const shift of shifts) {
+          // Only count shifts assigned to actual people (not SECU assignments)
           if (shift.personId) {
             const person = peopleMap.get(shift.personId);
             if (person) {
@@ -389,6 +430,116 @@ export const getFairnessReport = query({
         fairnessScore: maxShifts > 0 ? Math.round((1 - (maxShifts - minShifts) / maxShifts) * 100) : 100,
         totalPeople: fairnessReport.length
       }
+    };
+  },
+});
+
+// New mutation for admin override assignment
+export const adminOverrideAssign = mutation({
+  args: {
+    shiftId: v.id("shifts"),
+    personId: v.optional(v.id("people")),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    let warnings: string[] = [];
+    
+    if (args.personId) {
+      // Verify the person exists and is active
+      const person = await ctx.db.get(args.personId);
+      if (!person || person.isActive === false) {
+        throw new Error("Persoon niet gevonden of niet actief");
+      }
+      
+      // Verify the shift exists
+      const shift = await ctx.db.get(args.shiftId);
+      if (!shift) {
+        throw new Error("Dienst niet gevonden");
+      }
+      
+      // Get the show for this shift
+      const show = await ctx.db.get(shift.showId);
+      if (!show) {
+        throw new Error("Voorstelling niet gevonden");
+      }
+      
+      // For admin override, check if person is available for ANY shift in the same show
+      // instead of just the specific shift
+      const showShifts = await ctx.db
+        .query("shifts")
+        .withIndex("by_show", (q) => q.eq("showId", shift.showId))
+        .collect();
+      
+      let isAvailableForShow = false;
+      for (const showShift of showShifts) {
+        const availability = await ctx.db
+          .query("availability")
+          .withIndex("by_person_and_shift", (q) => 
+            q.eq("personId", args.personId!).eq("shiftId", showShift._id)
+          )
+          .first();
+        
+        if (availability && availability.available) {
+          isAvailableForShow = true;
+          break;
+        }
+      }
+      
+      if (!isAvailableForShow) {
+        throw new Error("Persoon is niet beschikbaar voor deze voorstelling");
+      }
+      
+      // Check if person has the correct role
+      if (!person.roles.includes(shift.role)) {
+        warnings.push(`${person.name} heeft niet de juiste functie (${shift.role}). Admin override toegepast.`);
+      }
+      
+      // Check if person is already assigned to another shift for the same show
+      const existingAssignment = showShifts.find(s => 
+        s._id !== args.shiftId && s.personId === args.personId
+      );
+      
+      if (existingAssignment) {
+        warnings.push(`${person.name} was al toegewezen aan een andere dienst voor ${show.name}. Vorige toewijzing verwijderd.`);
+        // First unassign from the existing shift
+        await ctx.db.patch(existingAssignment._id, {
+          personId: undefined,
+        });
+      }
+      
+      // Check for same-date conflicts
+      const sameDate = show.date;
+      const sameDateShows = await ctx.db
+        .query("shows")
+        .withIndex("by_date", (q) => q.eq("date", sameDate))
+        .collect();
+      
+      for (const sameDateShow of sameDateShows) {
+        if (sameDateShow._id === show._id) continue;
+        
+        const sameDateShifts = await ctx.db
+          .query("shifts")
+          .withIndex("by_show", (q) => q.eq("showId", sameDateShow._id))
+          .collect();
+        
+        const conflictingShift = sameDateShifts.find(s => s.personId === args.personId);
+        if (conflictingShift) {
+          warnings.push(`Let op: ${person.name} is ook toegewezen aan ${sameDateShow.name} op dezelfde dag.`);
+        }
+      }
+    }
+    
+    // Assign or unassign the person
+    await ctx.db.patch(args.shiftId, {
+      personId: args.personId || undefined,
+      // Clear SECU assignment if assigning a person
+      isSecuAssigned: args.personId ? undefined : undefined,
+    });
+    
+    return { 
+      success: true, 
+      warnings: warnings.length > 0 ? warnings : undefined 
     };
   },
 });

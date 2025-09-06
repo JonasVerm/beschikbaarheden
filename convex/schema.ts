@@ -67,6 +67,7 @@ const applicationTables = {
     peopleNeeded: v.optional(v.number()),
     position: v.optional(v.number()), // For multiple people in same role
     personId: v.optional(v.id("people")), // Assigned person
+    isSecuAssigned: v.optional(v.boolean()), // For FA shifts assigned to external security
   }).index("by_show", ["showId"])
     .index("by_person", ["personId"])
     .index("by_role", ["role"]),

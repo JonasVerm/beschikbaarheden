@@ -283,8 +283,78 @@ export const assignPerson = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     
+    let movedFromShift = null;
+    
+    if (args.personId) {
+      // Get the shift being assigned to
+      const shift = await ctx.db.get(args.shiftId);
+      if (!shift) {
+        throw new Error("Dienst niet gevonden");
+      }
+      
+      // Check if person is already assigned to another shift in the SAME show
+      const showShifts = await ctx.db
+        .query("shifts")
+        .withIndex("by_show", (q) => q.eq("showId", shift.showId))
+        .filter((q) => q.eq(q.field("personId"), args.personId))
+        .collect();
+      
+      const existingAssignment = showShifts.find(s => s._id !== args.shiftId);
+      
+      if (existingAssignment) {
+        // Get show details for the shift they're being moved from
+        const fromShow = await ctx.db.get(existingAssignment.showId);
+        movedFromShift = {
+          shiftId: existingAssignment._id,
+          role: existingAssignment.role,
+          showName: fromShow?.name || "Onbekende voorstelling",
+          showDate: fromShow?.date || "Onbekende datum"
+        };
+        
+        // Remove from the existing shift first
+        await ctx.db.patch(existingAssignment._id, {
+          personId: undefined,
+        });
+      }
+    }
+    
     await ctx.db.patch(args.shiftId, {
       personId: args.personId,
+      // Clear SECU assignment if assigning a person
+      isSecuAssigned: args.personId ? undefined : undefined,
     });
+    
+    return { movedFromShift };
+  },
+});
+
+// New mutation to toggle SECU assignment for FA shifts
+export const toggleSecuAssignment = mutation({
+  args: {
+    shiftId: v.id("shifts"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const shift = await ctx.db.get(args.shiftId);
+    if (!shift) {
+      throw new Error("Dienst niet gevonden");
+    }
+    
+    // Only allow SECU assignment for FA roles
+    if (shift.role !== "FA") {
+      throw new Error("SECU toewijzing is alleen beschikbaar voor FA functies");
+    }
+    
+    // Toggle SECU assignment
+    const newSecuState = !shift.isSecuAssigned;
+    
+    await ctx.db.patch(args.shiftId, {
+      isSecuAssigned: newSecuState,
+      // Clear person assignment if setting SECU
+      personId: newSecuState ? undefined : shift.personId,
+    });
+    
+    return { isSecuAssigned: newSecuState };
   },
 });

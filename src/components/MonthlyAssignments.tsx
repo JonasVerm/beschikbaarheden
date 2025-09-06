@@ -22,6 +22,7 @@ export function MonthlyAssignments() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [selectedShow, setSelectedShow] = useState<any>(null);
   const [assigningShifts, setAssigningShifts] = useState<Set<string>>(new Set());
+  const [showAdminOverride, setShowAdminOverride] = useState<Set<string>>(new Set());
   
   const assignmentData = useQuery(api.assignments.getMonthlyAssignmentSummary, {
     year: currentDate.getFullYear(),
@@ -38,6 +39,8 @@ export function MonthlyAssignments() {
   
   const autoAssignStaff = useMutation(api.assignments.autoAssignStaffForMonth);
   const assignPerson = useMutation(api.shifts.assignPerson);
+  const adminOverrideAssign = useMutation(api.assignments.adminOverrideAssign);
+  const toggleSecuAssignment = useMutation(api.shifts.toggleSecuAssignment);
 
   const handleAutoAssign = async () => {
     setIsAssigning(true);
@@ -65,21 +68,50 @@ export function MonthlyAssignments() {
     setAssigningShifts(prev => new Set(prev).add(shiftId));
     
     try {
-      await assignPerson({ shiftId, personId: personId || undefined });
-      toast.success(personId ? "Persoon toegewezen" : "Toewijzing verwijderd");
+      const result = await assignPerson({ shiftId, personId: personId || undefined });
+      
+      // Show success message with move information if applicable
+      if (personId && result?.movedFromShift) {
+        const fromDate = new Date(result.movedFromShift.showDate).toLocaleDateString('nl-BE');
+        // Check if it's the same show (same date and name)
+        const currentShow = selectedShow || assignmentData?.shows?.find(show => 
+          show.shifts.some(s => s._id === shiftId)
+        );
+        
+        if (currentShow && result.movedFromShift.showName === currentShow.name) {
+          toast.warning(
+            `⚠️ Persoon verplaatst binnen dezelfde voorstelling van ${result.movedFromShift.role} naar nieuwe functie`,
+            { duration: 6000 }
+          );
+        } else {
+          toast.success(
+            `Persoon toegewezen. Verplaatst van ${result.movedFromShift.role} op ${result.movedFromShift.showName} (${fromDate})`,
+            { duration: 6000 }
+          );
+        }
+      } else {
+        toast.success(personId ? "Persoon toegewezen" : "Toewijzing verwijderd");
+      }
       
       // Update selected show if it's open
       if (selectedShow) {
-        // Find and update the shift in selectedShow
+        // Find the person being assigned/unassigned
+        const targetShift = selectedShow.shifts.find((s: any) => s._id === shiftId);
+        const assignedPerson = personId ? (
+          targetShift?.availablePeople.find((p: any) => p._id === personId) ||
+          targetShift?.allAvailablePeople?.find((p: any) => p._id === personId)
+        ) : targetShift?.assignedPerson;
+
+        // Update all shifts in the selected show
         const updatedShifts = selectedShow.shifts.map((shift: any) => {
           if (shift._id === shiftId) {
+            // This is the target shift
             if (personId) {
-              // Find the person in available people
-              const assignedPerson = shift.availablePeople.find((p: any) => p._id === personId);
               return {
                 ...shift,
                 assignedPerson,
-                availablePeople: shift.availablePeople.filter((p: any) => p._id !== personId)
+                availablePeople: shift.availablePeople.filter((p: any) => p._id !== personId),
+                allAvailablePeople: shift.allAvailablePeople?.filter((p: any) => p._id !== personId)
               };
             } else {
               // Remove assignment
@@ -88,11 +120,50 @@ export function MonthlyAssignments() {
                 assignedPerson: null,
                 availablePeople: shift.assignedPerson 
                   ? [...shift.availablePeople, shift.assignedPerson]
-                  : shift.availablePeople
+                  : shift.availablePeople,
+                allAvailablePeople: shift.assignedPerson 
+                  ? [...(shift.allAvailablePeople || []), shift.assignedPerson]
+                  : shift.allAvailablePeople
               };
             }
+          } else if (personId && shift.assignedPerson && shift.assignedPerson._id === personId) {
+            // This shift had the person assigned but they were moved to the target shift
+            // Remove the assignment and add the person back to available lists
+            return {
+              ...shift,
+              assignedPerson: null,
+              availablePeople: shift.assignedPerson.roles.includes(shift.role) 
+                ? [...shift.availablePeople, shift.assignedPerson]
+                : shift.availablePeople,
+              allAvailablePeople: [...(shift.allAvailablePeople || []), shift.assignedPerson]
+            };
+          } else {
+            // Other shifts - handle adding/removing person from available lists
+            if (personId) {
+              // Remove the person from available lists if they're there (they got assigned)
+              return {
+                ...shift,
+                availablePeople: shift.availablePeople.filter((p: any) => p._id !== personId),
+                allAvailablePeople: shift.allAvailablePeople?.filter((p: any) => p._id !== personId)
+              };
+            } else if (assignedPerson) {
+              // Add the unassigned person back to available lists if they qualify
+              const shouldAddToAvailable = assignedPerson.roles.includes(shift.role) && 
+                !shift.availablePeople.some((p: any) => p._id === assignedPerson._id);
+              const shouldAddToAllAvailable = !shift.allAvailablePeople?.some((p: any) => p._id === assignedPerson._id);
+              
+              return {
+                ...shift,
+                availablePeople: shouldAddToAvailable 
+                  ? [...shift.availablePeople, assignedPerson]
+                  : shift.availablePeople,
+                allAvailablePeople: shouldAddToAllAvailable 
+                  ? [...(shift.allAvailablePeople || []), assignedPerson]
+                  : shift.allAvailablePeople
+              };
+            }
+            return shift;
           }
-          return shift;
         });
         
         setSelectedShow({
@@ -110,6 +181,180 @@ export function MonthlyAssignments() {
         return newSet;
       });
     }
+  };
+
+  const handleAdminOverrideAssign = async (shiftId: Id<"shifts">, personId: Id<"people"> | null) => {
+    // Add shift to loading state
+    setAssigningShifts(prev => new Set(prev).add(shiftId));
+    
+    try {
+      const result = await adminOverrideAssign({ shiftId, personId: personId || undefined });
+      
+      // Show success message
+      toast.success(personId ? "Persoon toegewezen (admin override)" : "Toewijzing verwijderd");
+      
+      // Show warnings if any
+      if (result.warnings && result.warnings.length > 0) {
+        result.warnings.forEach(warning => {
+          toast.warning(warning, { duration: 6000 });
+        });
+      }
+      
+      // Update selected show if it's open
+      if (selectedShow) {
+        const targetShift = selectedShow.shifts.find((s: any) => s._id === shiftId);
+        const assignedPerson = personId ? 
+          targetShift?.allAvailablePeople?.find((p: any) => p._id === personId) :
+          targetShift?.assignedPerson;
+        
+        // Update all shifts in the selected show
+        const updatedShifts = selectedShow.shifts.map((shift: any) => {
+          if (shift._id === shiftId) {
+            // This is the shift being assigned to/unassigned from
+            if (personId) {
+              return {
+                ...shift,
+                assignedPerson,
+                availablePeople: shift.availablePeople.filter((p: any) => p._id !== personId),
+                allAvailablePeople: shift.allAvailablePeople?.filter((p: any) => p._id !== personId)
+              };
+            } else {
+              // Removing assignment
+              return {
+                ...shift,
+                assignedPerson: null,
+                availablePeople: shift.assignedPerson 
+                  ? [...shift.availablePeople, shift.assignedPerson]
+                  : shift.availablePeople,
+                allAvailablePeople: shift.assignedPerson 
+                  ? [...(shift.allAvailablePeople || []), shift.assignedPerson]
+                  : shift.allAvailablePeople
+              };
+            }
+          } else if (personId && shift.assignedPerson && shift.assignedPerson._id === personId) {
+            // This shift had the person assigned but they were moved to another shift
+            // Remove the assignment and add the person back to available lists
+            return {
+              ...shift,
+              assignedPerson: null,
+              availablePeople: shift.assignedPerson.roles.includes(shift.role) 
+                ? [...shift.availablePeople, shift.assignedPerson]
+                : shift.availablePeople,
+              allAvailablePeople: [...(shift.allAvailablePeople || []), shift.assignedPerson]
+            };
+          } else {
+            // Other shifts - handle adding/removing person from available lists
+            if (personId) {
+              // Remove the person from available lists if they're there (they got assigned)
+              return {
+                ...shift,
+                availablePeople: shift.availablePeople.filter((p: any) => p._id !== personId),
+                allAvailablePeople: shift.allAvailablePeople?.filter((p: any) => p._id !== personId)
+              };
+            } else if (assignedPerson) {
+              // Add the unassigned person back to available lists if they qualify
+              const shouldAddToAvailable = assignedPerson.roles.includes(shift.role) && 
+                !shift.availablePeople.some((p: any) => p._id === assignedPerson._id);
+              const shouldAddToAllAvailable = !shift.allAvailablePeople?.some((p: any) => p._id === assignedPerson._id);
+              
+              return {
+                ...shift,
+                availablePeople: shouldAddToAvailable 
+                  ? [...shift.availablePeople, assignedPerson]
+                  : shift.availablePeople,
+                allAvailablePeople: shouldAddToAllAvailable 
+                  ? [...(shift.allAvailablePeople || []), assignedPerson]
+                  : shift.allAvailablePeople
+              };
+            }
+            return shift;
+          }
+        });
+        
+        setSelectedShow({
+          ...selectedShow,
+          shifts: updatedShifts
+        });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Fout bij admin override toewijzing");
+    } finally {
+      // Remove shift from loading state
+      setAssigningShifts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(shiftId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleSecuToggle = async (shiftId: Id<"shifts">) => {
+    setAssigningShifts(prev => new Set(prev).add(shiftId));
+    try {
+      const result = await toggleSecuAssignment({ shiftId });
+      toast.success(result.isSecuAssigned ? "SECU toegewezen" : "SECU toewijzing verwijderd");
+      
+      // Update selected show if it's open
+      if (selectedShow) {
+        const updatedShifts = selectedShow.shifts.map((shift: any) => {
+          if (shift._id === shiftId) {
+            const wasAssignedPerson = shift.assignedPerson;
+            return {
+              ...shift,
+              isSecuAssigned: result.isSecuAssigned,
+              // If SECU is assigned, clear any person assignment
+              assignedPerson: result.isSecuAssigned ? null : shift.assignedPerson
+            };
+          } else if (!result.isSecuAssigned && shift.assignedPerson) {
+            // If SECU was unassigned, we need to add the previously assigned person back to other shifts
+            const targetShift = selectedShow.shifts.find((s: any) => s._id === shiftId);
+            const wasAssignedPerson = targetShift?.assignedPerson;
+            
+            if (wasAssignedPerson) {
+              const shouldAddToAvailable = wasAssignedPerson.roles.includes(shift.role) && 
+                !shift.availablePeople.some((p: any) => p._id === wasAssignedPerson._id);
+              const shouldAddToAllAvailable = !shift.allAvailablePeople?.some((p: any) => p._id === wasAssignedPerson._id);
+              
+              return {
+                ...shift,
+                availablePeople: shouldAddToAvailable 
+                  ? [...shift.availablePeople, wasAssignedPerson]
+                  : shift.availablePeople,
+                allAvailablePeople: shouldAddToAllAvailable 
+                  ? [...(shift.allAvailablePeople || []), wasAssignedPerson]
+                  : shift.allAvailablePeople
+              };
+            }
+          }
+          return shift;
+        });
+        
+        setSelectedShow({
+          ...selectedShow,
+          shifts: updatedShifts
+        });
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Fout bij SECU toewijzing");
+    } finally {
+      setAssigningShifts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(shiftId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleAdminOverride = (shiftId: string) => {
+    setShowAdminOverride(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(shiftId)) {
+        newSet.delete(shiftId);
+      } else {
+        newSet.add(shiftId);
+      }
+      return newSet;
+    });
   };
 
   const exportToExcel = () => {
@@ -186,7 +431,14 @@ export function MonthlyAssignments() {
       
       // Fill in the assignments
       show.shifts.forEach(shift => {
-        const assignedName = shift.assignedPerson?.name || 'Niet toegewezen';
+        let assignedName = 'Niet toegewezen';
+        
+        if (shift.assignedPerson) {
+          assignedName = shift.assignedPerson.name;
+        } else if (shift.isSecuAssigned) {
+          assignedName = 'SECU';
+        }
+        
         const position = shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 ? ` (#${shift.position})` : '';
         const fullAssignment = assignedName + position;
         
@@ -258,8 +510,8 @@ export function MonthlyAssignments() {
   // Calendar helper functions
   const getShowStatus = (show: any) => {
     const totalShifts = show.shifts.length;
-    const assignedShifts = show.shifts.filter((s: any) => s.assignedPerson).length;
-    const shiftsWithoutAvailable = show.shifts.filter((s: any) => !s.assignedPerson && !s.hasAvailablePeople).length;
+    const assignedShifts = show.shifts.filter((s: any) => s.assignedPerson || s.isSecuAssigned).length;
+    const shiftsWithoutAvailable = show.shifts.filter((s: any) => !s.assignedPerson && !s.isSecuAssigned && !s.hasAvailablePeople).length;
 
     if (assignedShifts === totalShifts) return 'complete'; // Green
     if (shiftsWithoutAvailable > 0) return 'critical'; // Red
@@ -542,11 +794,11 @@ export function MonthlyAssignments() {
               {/* Show Stats */}
               <div className="flex items-center space-x-4 mt-4 md:mt-0">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{show.shifts.filter(s => s.assignedPerson).length}</div>
+                  <div className="text-2xl font-bold text-green-600">{show.shifts.filter(s => s.assignedPerson || s.isSecuAssigned).length}</div>
                   <div className="text-xs text-gray-500">Toegewezen</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{show.shifts.filter(s => !s.assignedPerson).length}</div>
+                  <div className="text-2xl font-bold text-red-600">{show.shifts.filter(s => !s.assignedPerson && !s.isSecuAssigned).length}</div>
                   <div className="text-xs text-gray-500">Open</div>
                 </div>
               </div>
@@ -558,7 +810,7 @@ export function MonthlyAssignments() {
                 <div 
                   key={shift._id} 
                   className={`p-6 rounded-xl border-2 transition-all duration-200 ${
-                    shift.assignedPerson 
+                    shift.assignedPerson || shift.isSecuAssigned
                       ? 'border-green-200 bg-green-50' 
                       : shift.hasAvailablePeople
                         ? 'border-yellow-200 bg-yellow-50'
@@ -587,6 +839,11 @@ export function MonthlyAssignments() {
                             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                             <span className="text-green-700 font-medium">Toegewezen aan {shift.assignedPerson.name}</span>
                           </div>
+                        ) : shift.isSecuAssigned ? (
+                          <div className="flex items-center space-x-2 mt-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-green-700 font-medium">Toegewezen aan SECU</span>
+                          </div>
                         ) : shift.hasAvailablePeople ? (
                           <div className="flex items-center space-x-2 mt-2">
                             <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
@@ -603,20 +860,48 @@ export function MonthlyAssignments() {
 
                     {/* Assignment Actions */}
                     <div className="flex items-center space-x-3">
-                      {shift.assignedPerson && (
+                      {/* SECU Checkbox for FA roles */}
+                      {shift.role === "FA" && (
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={shift.isSecuAssigned || false}
+                            onChange={() => handleSecuToggle(shift._id)}
+                            disabled={assigningShifts.has(shift._id)}
+                            className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 disabled:opacity-50"
+                          />
+                          <span className="text-sm font-medium text-gray-700">SECU</span>
+                        </label>
+                      )}
+
+                      {(shift.assignedPerson || shift.isSecuAssigned) && (
                         <button
-                          onClick={() => handleManualAssign(shift._id, null)}
+                          onClick={() => shift.assignedPerson ? handleManualAssign(shift._id, null) : handleSecuToggle(shift._id)}
                           disabled={assigningShifts.has(shift._id)}
                           className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {assigningShifts.has(shift._id) ? "Bezig..." : "Niet Toewijzen"}
                         </button>
                       )}
+                      
+                      {/* Admin Override Toggle */}
+                      {!shift.assignedPerson && !shift.isSecuAssigned && (shift.allAvailablePeople && shift.allAvailablePeople.length > 0) && (
+                        <button
+                          onClick={() => toggleAdminOverride(shift._id)}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg ${
+                            showAdminOverride.has(shift._id)
+                              ? 'bg-orange-500 text-white hover:bg-orange-600'
+                              : 'bg-gray-500 text-white hover:bg-gray-600'
+                          }`}
+                        >
+                          🔓 Admin Override
+                        </button>
+                      )}
                     </div>
                   </div>
 
                   {/* Available People */}
-                  {!shift.assignedPerson && shift.availablePeople.length > 0 && (
+                  {!shift.assignedPerson && !shift.isSecuAssigned && shift.availablePeople.length > 0 && !showAdminOverride.has(shift._id) && (
                     <div className="mt-6 pt-6 border-t border-gray-200">
                       <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center space-x-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -642,8 +927,83 @@ export function MonthlyAssignments() {
                     </div>
                   )}
 
+                  {/* Debug info - Always show when admin override is active */}
+                  {showAdminOverride.has(shift._id) && (
+                    <div className="mt-4 p-3 bg-yellow-100 rounded text-xs border border-yellow-300">
+                      <strong>🔍 DEBUG:</strong> allAvailable: {shift.allAvailablePeople?.length || 0}, 
+                      available: {shift.availablePeople?.length || 0}, 
+                      hasAny: {shift.hasAnyAvailablePeople ? 'true' : 'false'}
+                      {shift.allAvailablePeople && shift.allAvailablePeople.length > 0 && (
+                        <div>People: {shift.allAvailablePeople.map((p: any) => `${p.name} (${p.roles.join(', ')})`).join(', ')}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Admin Override Available People */}
+                  {!shift.assignedPerson && !shift.isSecuAssigned && showAdminOverride.has(shift._id) && shift.allAvailablePeople && shift.allAvailablePeople.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-orange-200">
+                      <h5 className="text-sm font-bold text-orange-700 mb-3 flex items-center space-x-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>🔓 Admin Override - Alle Beschikbare Mensen ({shift.allAvailablePeople.length})</span>
+                      </h5>
+                      <div className="bg-orange-50 p-4 rounded-lg mb-4 border border-orange-200">
+                        <p className="text-orange-800 text-sm">
+                          <strong>Let op:</strong> Admin override modus actief. Je kunt elke beschikbare persoon toewijzen, 
+                          ongeacht hun functie. Personen zonder de juiste functie zijn gemarkeerd met ⚠️.
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {shift.allAvailablePeople.map((person: any) => {
+                          const hasCorrectRole = person.roles.includes(shift.role);
+                          return (
+                            <div key={person._id} className={`flex justify-between items-center p-3 rounded-lg border transition-all duration-200 ${
+                              hasCorrectRole 
+                                ? 'bg-white border-gray-200 hover:border-gray-300' 
+                                : 'bg-orange-50 border-orange-200 hover:border-orange-300'
+                            }`}>
+                              <div className="flex items-center space-x-2">
+                                {!hasCorrectRole && <span className="text-orange-500">⚠️</span>}
+                                <span className="font-medium text-gray-900">{person.name}</span>
+                                {!hasCorrectRole && (
+                                  <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                    {person.roles.join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => handleAdminOverrideAssign(shift._id, person._id)}
+                                disabled={assigningShifts.has(shift._id)}
+                                className={`px-3 py-1 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  hasCorrectRole ? 'bg-gray-800' : 'bg-orange-500'
+                                }`}
+                              >
+                                {assigningShifts.has(shift._id) ? "Bezig..." : "Override Toewijzen"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin Override No People Available */}
+                  {!shift.assignedPerson && !shift.isSecuAssigned && showAdminOverride.has(shift._id) && (!shift.allAvailablePeople || shift.allAvailablePeople.length === 0) && (
+                    <div className="mt-6 pt-6 border-t border-orange-200">
+                      <div className="flex items-center justify-center p-6 bg-orange-100 rounded-xl border-2 border-orange-200">
+                        <div className="text-center">
+                          <h6 className="text-lg font-bold text-orange-800 mb-2">🔓 Admin Override Actief</h6>
+                          <p className="text-orange-600 text-sm">
+                            Er zijn geen medewerkers beschikbaar voor deze dienst.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* No Available People Warning */}
-                  {!shift.assignedPerson && shift.availablePeople.length === 0 && (
+                  {!shift.assignedPerson && !shift.isSecuAssigned && shift.availablePeople.length === 0 && !shift.hasAnyAvailablePeople && !showAdminOverride.has(shift._id) && (
                     <div className="mt-6 pt-6 border-t border-red-200">
                       <div className="flex items-center justify-center p-6 bg-red-100 rounded-xl border-2 border-red-200">
                         <div className="text-center">
@@ -722,11 +1082,11 @@ export function MonthlyAssignments() {
                   {/* Show Stats */}
                   <div className="flex items-center space-x-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{selectedShow.shifts.filter((s: any) => s.assignedPerson).length}</div>
+                      <div className="text-2xl font-bold text-green-600">{selectedShow.shifts.filter((s: any) => s.assignedPerson || s.isSecuAssigned).length}</div>
                       <div className="text-xs text-gray-500">Toegewezen</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{selectedShow.shifts.filter((s: any) => !s.assignedPerson).length}</div>
+                      <div className="text-2xl font-bold text-red-600">{selectedShow.shifts.filter((s: any) => !s.assignedPerson && !s.isSecuAssigned).length}</div>
                       <div className="text-xs text-gray-500">Open</div>
                     </div>
                   </div>
@@ -745,7 +1105,7 @@ export function MonthlyAssignments() {
                   <div 
                     key={shift._id} 
                     className={`p-6 rounded-xl border-2 transition-all duration-200 ${
-                      shift.assignedPerson 
+                      shift.assignedPerson || shift.isSecuAssigned
                         ? 'border-green-200 bg-green-50' 
                         : shift.hasAvailablePeople
                           ? 'border-yellow-200 bg-yellow-50'
@@ -774,6 +1134,11 @@ export function MonthlyAssignments() {
                               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                               <span className="text-green-700 font-medium">Toegewezen aan {shift.assignedPerson.name}</span>
                             </div>
+                          ) : shift.isSecuAssigned ? (
+                            <div className="flex items-center space-x-2 mt-2">
+                              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                              <span className="text-green-700 font-medium">Toegewezen aan SECU</span>
+                            </div>
                           ) : shift.hasAvailablePeople ? (
                             <div className="flex items-center space-x-2 mt-2">
                               <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
@@ -790,20 +1155,48 @@ export function MonthlyAssignments() {
 
                       {/* Assignment Actions */}
                       <div className="flex items-center space-x-3">
-                        {shift.assignedPerson && (
+                        {/* SECU Checkbox for FA roles */}
+                        {shift.role === "FA" && (
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={shift.isSecuAssigned || false}
+                              onChange={() => handleSecuToggle(shift._id)}
+                              disabled={assigningShifts.has(shift._id)}
+                              className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 disabled:opacity-50"
+                            />
+                            <span className="text-sm font-medium text-gray-700">SECU</span>
+                          </label>
+                        )}
+
+                        {(shift.assignedPerson || shift.isSecuAssigned) && (
                           <button
-                            onClick={() => handleManualAssign(shift._id, null)}
+                            onClick={() => shift.assignedPerson ? handleManualAssign(shift._id, null) : handleSecuToggle(shift._id)}
                             disabled={assigningShifts.has(shift._id)}
                             className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {assigningShifts.has(shift._id) ? "Bezig..." : "Niet Toewijzen"}
                           </button>
                         )}
+                        
+                        {/* Admin Override Toggle */}
+                        {!shift.assignedPerson && !shift.isSecuAssigned && (shift.allAvailablePeople && shift.allAvailablePeople.length > 0) && (
+                          <button
+                            onClick={() => toggleAdminOverride(shift._id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-md hover:shadow-lg ${
+                              showAdminOverride.has(shift._id)
+                                ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                : 'bg-gray-500 text-white hover:bg-gray-600'
+                            }`}
+                          >
+                            🔓 Admin Override
+                          </button>
+                        )}
                       </div>
                     </div>
 
                     {/* Available People */}
-                    {shift.availablePeople.length > 0 && (
+                    {!shift.assignedPerson && !shift.isSecuAssigned && shift.availablePeople.length > 0 && !showAdminOverride.has(shift._id) && (
                       <div className="pt-4 border-t border-gray-200">
                         <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center space-x-2">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -834,8 +1227,57 @@ export function MonthlyAssignments() {
                       </div>
                     )}
 
+                    {/* Admin Override Available People */}
+                    {!shift.assignedPerson && !shift.isSecuAssigned && showAdminOverride.has(shift._id) && shift.allAvailablePeople && shift.allAvailablePeople.length > 0 && (
+                      <div className="pt-4 border-t border-orange-200">
+                        <h5 className="text-sm font-bold text-orange-700 mb-3 flex items-center space-x-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          <span>🔓 Admin Override - Alle Beschikbare Mensen ({shift.allAvailablePeople.length})</span>
+                        </h5>
+                        <div className="bg-orange-50 p-4 rounded-lg mb-4 border border-orange-200">
+                          <p className="text-orange-800 text-sm">
+                            <strong>Let op:</strong> Admin override modus actief. Je kunt elke beschikbare persoon toewijzen, 
+                            ongeacht hun functie. Personen zonder de juiste functie zijn gemarkeerd met ⚠️.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {shift.allAvailablePeople.map((person: any) => {
+                            const hasCorrectRole = person.roles.includes(shift.role);
+                            return (
+                              <div key={person._id} className={`flex justify-between items-center p-3 rounded-lg border transition-all duration-200 ${
+                                hasCorrectRole 
+                                  ? 'bg-white border-gray-200 hover:border-gray-300' 
+                                  : 'bg-orange-50 border-orange-200 hover:border-orange-300'
+                              }`}>
+                                <div className="flex items-center space-x-2">
+                                  {!hasCorrectRole && <span className="text-orange-500">⚠️</span>}
+                                  <span className="font-medium text-gray-900">{person.name}</span>
+                                  {!hasCorrectRole && (
+                                    <span className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                      {person.roles.join(', ')}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handleAdminOverrideAssign(shift._id, person._id)}
+                                  disabled={assigningShifts.has(shift._id)}
+                                  className={`px-3 py-1 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    hasCorrectRole ? 'bg-gray-800' : 'bg-orange-500'
+                                  }`}
+                                >
+                                  {assigningShifts.has(shift._id) ? "Bezig..." : "Override Toewijzen"}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* No Available People Warning */}
-                    {shift.availablePeople.length === 0 && !shift.assignedPerson && (
+                    {!shift.assignedPerson && !shift.isSecuAssigned && shift.availablePeople.length === 0 && !shift.hasAnyAvailablePeople && !showAdminOverride.has(shift._id) && (
                       <div className="pt-4 border-t border-red-200">
                         <div className="flex items-center justify-center p-4 bg-red-100 rounded-xl border-2 border-red-200">
                           <div className="text-center">
