@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { 
   startOfMonth, 
   endOfMonth, 
@@ -357,7 +357,23 @@ export function MonthlyAssignments() {
     });
   };
 
-  const exportToExcel = () => {
+  // Helper function to lighten a hex color
+  const lightenColor = (color: string, factor: number) => {
+    const hex = color.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    
+    const newR = Math.min(255, Math.floor(r + (255 - r) * factor));
+    const newG = Math.min(255, Math.floor(g + (255 - g) * factor));
+    const newB = Math.min(255, Math.floor(b + (255 - b) * factor));
+    
+    return newR.toString(16).padStart(2, '0') + 
+           newG.toString(16).padStart(2, '0') + 
+           newB.toString(16).padStart(2, '0');
+  };
+
+  const exportToExcel = async () => {
     if (!assignmentData?.shows || assignmentData.shows.length === 0) {
       toast.error('Geen gegevens om te exporteren');
       return;
@@ -403,19 +419,62 @@ export function MonthlyAssignments() {
       roleNameToDisplayName[role.name] = role.displayName || role.name;
     });
 
-    // Prepare data for Excel using the ordered roles
-    const excelData: any[] = [];
+    // Create workbook and worksheet
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Capitole Gent';
+    workbook.title = 'Personeelstoewijzingen';
+    workbook.subject = `Toewijzingen voor ${monthName}`;
+    workbook.created = new Date();
 
-    // Add header row: Show name, Date, Start time, then start time column + assignments column per role
-    const headerRow = ['Voorstelling', 'Datum', 'Starttijd'];
+    const worksheet = workbook.addWorksheet('Toewijzingen');
+
+    // Define colors for different role types
+    const roleColors: Record<string, string> = {
+      'Front Of House': 'C6EFCE', // light green
+      'Medewerkersingang': 'FFF2CC', // light blue  
+      'Front-assistant': 'F2DCDB', // light yellow
+      'Bar-assistant': 'FCE4D6', // light orange
+      'Bar': 'BDD7EE', // light red
+      'Levering': 'F2F2F2' // light gray
+    };
+
+    // Add header row
+    const headerRow = ['Voorstelling', 'Datum', 'Show start'];
     sortedRoles.forEach(role => {
-      headerRow.push(`${role} - Starttijd`);
+      headerRow.push('Start');
       headerRow.push(role);
     });
-    excelData.push(headerRow);
+    
+    const headerRowObj = worksheet.addRow(headerRow);
+    headerRowObj.height = 30;
+
+    // Style header row
+    headerRowObj.eachCell((cell, colNumber) => {
+      cell.font = { name: 'Arial', size: 14, bold: true };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+
+      // Set background color
+      let bgColor = 'F2F2F2'; // Default gray for first 3 columns
+      if (colNumber > 3) {
+        const roleIndex = Math.floor((colNumber - 4) / 2);
+        const role = sortedRoles[roleIndex];
+        bgColor = roleColors[role] || 'F2F2F2';
+      }
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF' + bgColor }
+      };
+    });
 
     // Add data rows
-    assignmentData.shows.forEach(show => {
+    assignmentData.shows.forEach((show, showIndex) => {
       const [year, month, day] = show.date.split('-').map(Number);
       const localDate = new Date(Date.UTC(year, month - 1, day));
       
@@ -431,25 +490,44 @@ export function MonthlyAssignments() {
       
       // Fill in the assignments
       show.shifts.forEach(shift => {
-        let assignedName = 'Niet toegewezen';
-        
-        if (shift.assignedPerson) {
-          assignedName = shift.assignedPerson.name;
-        } else if (shift.isSecuAssigned) {
-          assignedName = 'SECU';
+        if (shift.assignedPerson || shift.isSecuAssigned) {
+          let assignedName = '';
+          
+          if (shift.assignedPerson) {
+            assignedName = shift.assignedPerson.name;
+          } else if (shift.isSecuAssigned) {
+            assignedName = 'SECU';
+          }
+          
+          // Use display name for the assignment mapping
+          const roleDisplayName = roleNameToDisplayName[shift.role] || shift.role;
+          if (!roleAssignments[roleDisplayName]) {
+            roleAssignments[roleDisplayName] = [];
+            roleStartTimes[roleDisplayName] = [];
+          }
+          roleAssignments[roleDisplayName].push(assignedName);
+          roleStartTimes[roleDisplayName].push(shift.startTime || '');
         }
-        
-        const position = shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 ? ` (#${shift.position})` : '';
-        const fullAssignment = assignedName + position;
-        
-        // Use display name for the assignment mapping
-        const roleDisplayName = roleNameToDisplayName[shift.role] || shift.role;
-        if (!roleAssignments[roleDisplayName]) {
-          roleAssignments[roleDisplayName] = [];
-          roleStartTimes[roleDisplayName] = [];
+      });
+      
+      // Sort names alphabetically by last name within each role
+      sortedRoles.forEach(role => {
+        if (roleAssignments[role].length > 0) {
+          const combined = roleAssignments[role].map((name, index) => ({
+            name,
+            startTime: roleStartTimes[role][index]
+          }));
+          
+          // Sort by last name (assuming format "First Last" or just "Name")
+          combined.sort((a, b) => {
+            const lastNameA = a.name.split(' ').pop() || a.name;
+            const lastNameB = b.name.split(' ').pop() || b.name;
+            return lastNameA.localeCompare(lastNameB, 'nl');
+          });
+          
+          roleAssignments[role] = combined.map(item => item.name);
+          roleStartTimes[role] = combined.map(item => item.startTime);
         }
-        roleAssignments[roleDisplayName].push(fullAssignment);
-        roleStartTimes[roleDisplayName].push(shift.startTime || '');
       });
       
       // Create the row data
@@ -463,38 +541,114 @@ export function MonthlyAssignments() {
       sortedRoles.forEach(role => {
         const assignments = roleAssignments[role];
         const startTimes = roleStartTimes[role];
-        rowData.push(startTimes.length > 0 ? startTimes.join(', ') : '');
+        // Only show start time if there are assignments and if it's unique for this role
+        const uniqueStartTimes = [...new Set(startTimes)];
+        rowData.push(uniqueStartTimes.length === 1 ? uniqueStartTimes[0] : '');
         rowData.push(assignments.length > 0 ? assignments.join(', ') : '');
       });
       
-      excelData.push(rowData);
+      const dataRow = worksheet.addRow(rowData);
+      
+      // Determine if this is an even or odd row for alternating colors
+      const isEvenRow = showIndex % 2 === 0;
+      
+      // Style data row
+      dataRow.eachCell((cell, colNumber) => {
+        cell.font = { name: 'Arial', size: 12 };
+        cell.alignment = { 
+          horizontal: colNumber <= 3 ? 'left' : 'left', 
+          vertical: 'middle', 
+          wrapText: true 
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+
+        // Set background color
+        let bgColor = 'FFFFFF'; // Default white
+        
+        if (colNumber <= 3) {
+          // First 3 columns: alternating darker gray
+          bgColor = isEvenRow ? 'E9ECEF' : 'F8F9FA';
+        } else {
+          // Role columns: use role colors with alternating intensity
+          const roleIndex = Math.floor((colNumber - 4) / 2);
+          const role = sortedRoles[roleIndex];
+          const baseColor = roleColors[role] || 'FFFFFF';
+          
+          if (isEvenRow) {
+            // Even rows: use the base role color
+            bgColor = baseColor;
+          } else {
+            // Odd rows: use a slightly lighter version of the role color
+            bgColor = lightenColor(baseColor, 0.3);
+          }
+        }
+        
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF' + bgColor }
+        };
+      });
     });
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    // Define role-specific column widths
+    const roleWidths: Record<string, number> = {
+      'Front Of House': 25,
+      'Medewerkersingang': 25,
+      'Front-assistant': 50,
+      'Bar-assistant': 50,
+      'Bar': 125,
+      'Leveringen': 25
+    };
 
-    // Set column widths - first 3 columns fixed, then dynamic for start times and roles
-    const colWidths = [
-      { wch: 25 }, // Show name
-      { wch: 12 }, // Date
-      { wch: 15 }, // Start time
-      ...sortedRoles.flatMap(() => [
-        { wch: 15 }, // Role start time column
-        { wch: 50 }  // Role assignment column (wider)
-      ])
+    // Set column widths
+    const columns = [
+      { width: 60 }, // Show name
+      { width: 15 }, // Date
+      { width: 15 }, // Start time
     ];
-    ws['!cols'] = colWidths;
 
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Toewijzingen');
+    // Add role-specific widths
+    sortedRoles.forEach(role => {
+      const roleWidth = roleWidths[role] || 100; // Default to 100 if role not found
+      columns.push(
+        { width: 10 }, // Role start time column
+        { width: roleWidth }  // Role names column with specific width
+      );
+    });
+
+    worksheet.columns = columns;
+
+    // Freeze the first 3 columns (Show name, Date, Start time) and header row
+    worksheet.views = [
+      {
+        state: 'frozen',
+        xSplit: 3, // First 3 columns are frozen
+        ySplit: 1, // Header row is frozen
+        topLeftCell: 'D2', // First scrollable cell (column 4, row 2)
+        activeCell: 'A1'
+      }
+    ];
 
     // Generate filename with month and year
     const filename = `Toewijzingen_${monthName.replace(' ', '_')}.xlsx`;
 
-    // Save file
-    XLSX.writeFile(wb, filename);
-    toast.success("Excel bestand gedownload! Kolommen zijn geordend volgens de volgorde in Functies beheren.");
+    // Write file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(url);
+    
+    toast.success("Excel bestand gedownload met volledige styling! Kolommen zijn geordend volgens de volgorde in Functies beheren.");
   };
 
   const nextMonth = () => {
