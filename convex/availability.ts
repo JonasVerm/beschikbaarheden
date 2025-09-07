@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { requireAdmin } from "./adminHelpers";
 
 export const setAvailability = mutation({
   args: {
@@ -165,5 +166,98 @@ export const markRestAsUnavailable = mutation({
       markedUnavailable,
       message: `${markedUnavailable} diensten gemarkeerd als niet beschikbaar.`
     };
+  },
+});
+
+// Admin-only functions that bypass date restrictions
+export const adminSetAvailability = mutation({
+  args: {
+    personId: v.id("people"),
+    shiftId: v.id("shifts"),
+    available: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    // Get the shift to find its role and show
+    const shift = await ctx.db.get(args.shiftId);
+    if (!shift) {
+      throw new Error("Shift not found");
+    }
+    
+    // Find all shifts for the same role in the same show
+    const allRoleShifts = await ctx.db
+      .query("shifts")
+      .withIndex("by_show", (q) => q.eq("showId", shift.showId))
+      .filter((q) => q.eq(q.field("role"), shift.role))
+      .collect();
+    
+    // Set availability for all shifts of this role
+    for (const roleShift of allRoleShifts) {
+      const existingAvailability = await ctx.db
+        .query("availability")
+        .withIndex("by_person_and_shift", (q) => 
+          q.eq("personId", args.personId).eq("shiftId", roleShift._id)
+        )
+        .unique();
+      
+      if (args.available) {
+        if (existingAvailability) {
+          await ctx.db.patch(existingAvailability._id, { available: true });
+        } else {
+          await ctx.db.insert("availability", {
+            personId: args.personId,
+            shiftId: roleShift._id,
+            available: true,
+          });
+        }
+      } else {
+        if (existingAvailability) {
+          await ctx.db.patch(existingAvailability._id, { available: false });
+        } else {
+          await ctx.db.insert("availability", {
+            personId: args.personId,
+            shiftId: roleShift._id,
+            available: false,
+          });
+        }
+      }
+    }
+    
+    return { success: true };
+  },
+});
+
+export const adminClearAvailability = mutation({
+  args: {
+    personId: v.id("people"),
+    shiftId: v.id("shifts"),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const shift = await ctx.db.get(args.shiftId);
+    if (!shift) throw new Error("Shift not found");
+    
+    const allRoleShifts = await ctx.db
+      .query("shifts")
+      .withIndex("by_show", (q) => q.eq("showId", shift.showId))
+      .filter((q) => q.eq(q.field("role"), shift.role))
+      .collect();
+    
+    for (const roleShift of allRoleShifts) {
+      const existing = await ctx.db
+        .query("availability")
+        .withIndex("by_person_and_shift", (q) => 
+          q.eq("personId", args.personId).eq("shiftId", roleShift._id)
+        )
+        .unique();
+      
+      if (existing) {
+        await ctx.db.delete(existing._id);
+      }
+    }
+    
+    return { success: true };
   },
 });
