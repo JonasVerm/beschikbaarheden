@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { downloadICSFile, CalendarData } from "../utils/icsGenerator";
 
 type GroupedShift = {
   _id: Id<"shifts">;
@@ -29,8 +30,10 @@ export function AdminAvailabilityEditor() {
   const [selectedPersonId, setSelectedPersonId] = useState<Id<"people"> | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [optimisticAvailability, setOptimisticAvailability] = useState<Map<Id<"shifts">, boolean | null>>(new Map());
+  const [isDownloadingCalendar, setIsDownloadingCalendar] = useState(false);
 
   const peopleByGroup = useQuery(api.groups.getPeopleByGroup);
+  const currentUser = useQuery(api.auth.loggedInUser);
   const shifts = useQuery(
     api.adminAvailability.adminGetAllShowsForPerson,
     selectedPersonId
@@ -42,8 +45,39 @@ export function AdminAvailabilityEditor() {
       : "skip"
   );
 
+  const calendarData = useQuery(
+    api.calendarExport.getAssignedShiftsForCalendar,
+    selectedPersonId
+      ? {
+          personId: selectedPersonId,
+          year: currentDate.getFullYear(),
+          month: currentDate.getMonth() + 1,
+        }
+      : "skip"
+  );
+
   const adminSetAvailability = useMutation(api.availability.adminSetAvailability);
   const adminClearAvailability = useMutation(api.availability.adminClearAvailability);
+
+  const handleDownloadCalendar = async () => {
+    if (!selectedPersonId || !calendarData) return;
+    
+    setIsDownloadingCalendar(true);
+    try {
+      if (calendarData.shifts.length === 0) {
+        toast.info("Geen toegewezen diensten gevonden voor deze maand");
+        return;
+      }
+      
+      downloadICSFile(calendarData as CalendarData);
+      toast.success(`Kalender gedownload voor ${calendarData.person.name}`);
+    } catch (error) {
+      console.error("Error downloading calendar:", error);
+      toast.error("Fout bij downloaden van kalender");
+    } finally {
+      setIsDownloadingCalendar(false);
+    }
+  };
 
   const handleAvailabilityChange = async (shiftId: Id<"shifts">, newStatus: boolean | null) => {
     if (!selectedPersonId) return;
@@ -169,13 +203,16 @@ export function AdminAvailabilityEditor() {
     }
   };
 
+  const selectedPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === selectedPersonId);
+  const isSuperAdmin = currentUser?.adminRole === 'superadmin';
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="modern-card p-8">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">🔧 Admin Beschikbaarheid Editor</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Beschikbaarheid Bewerken</h2>
             <p className="text-gray-600">Bewerk beschikbaarheid van medewerkers, ook na sluitingsdatum</p>
           </div>
           
@@ -183,18 +220,16 @@ export function AdminAvailabilityEditor() {
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg bg-brand-secondary text-brand-primary"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="font-bold text-xl px-4" style={{ color: '#161616' }}>{monthName}</span>
+            <span className="font-bold text-xl px-4 text-brand-primary">{monthName}</span>
             <button
               onClick={nextMonth}
-              className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg bg-brand-secondary text-brand-primary"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -205,26 +240,50 @@ export function AdminAvailabilityEditor() {
 
         {/* Person Selection */}
         <div className="mt-8">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Selecteer Medewerker</label>
-          <select
-            value={selectedPersonId || ""}
-            onChange={(e) => {
-              setSelectedPersonId(e.target.value ? e.target.value as Id<"people"> : null);
-              setOptimisticAvailability(new Map());
-            }}
-            className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">-- Kies een medewerker --</option>
-            {peopleByGroup?.map((groupData) => (
-              <optgroup key={groupData.group._id} label={groupData.group.displayName}>
-                {groupData.people.map((person) => (
-                  <option key={person._id} value={person._id}>
-                    {person.name} ({person.roles.join(', ')})
-                  </option>
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-3">Selecteer Medewerker</label>
+              <select
+                value={selectedPersonId || ""}
+                onChange={(e) => {
+                  setSelectedPersonId(e.target.value ? e.target.value as Id<"people"> : null);
+                  setOptimisticAvailability(new Map());
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- Kies een medewerker --</option>
+                {peopleByGroup?.map((groupData) => (
+                  <optgroup key={groupData.group._id} label={groupData.group.displayName}>
+                    {groupData.people.map((person) => (
+                      <option key={person._id} value={person._id}>
+                        {person.name} ({person.roles.join(', ')})
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
-              </optgroup>
-            ))}
-          </select>
+              </select>
+            </div>
+            
+            {/* Calendar Download Button - Only for Super Admins */}
+            {isSuperAdmin && selectedPersonId && selectedPerson && (
+              <button
+                onClick={handleDownloadCalendar}
+                disabled={isDownloadingCalendar}
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>{isDownloadingCalendar ? 'Downloaden...' : 'Download Kalender'}</span>
+              </button>
+            )}
+          </div>
+          
+          {isSuperAdmin && selectedPersonId && selectedPerson && (
+            <p className="text-sm text-gray-500 mt-2">
+              📅 Download toegewezen diensten als ICS-bestand voor import in Google Calendar
+            </p>
+          )}
         </div>
       </div>
 
@@ -348,7 +407,7 @@ export function AdminAvailabilityEditor() {
             <div className="modern-card p-12 text-center">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z" />
                 </svg>
               </div>
               <h3 className="text-2xl font-semibold text-gray-900 mb-3">Geen voorstellingen gevonden</h3>

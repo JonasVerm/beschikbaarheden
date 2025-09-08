@@ -44,7 +44,7 @@ export function InitialSetup({ onSetupComplete }: Props) {
   return (
     <div className="max-w-md mx-auto mt-8">
       <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-2xl font-bold mb-6 text-center" style={{ color: '#161616' }}>
+        <h2 className="text-2xl font-bold mb-6 text-center text-brand-primary">
           Eerste Super Admin Aanmaken
         </h2>
         

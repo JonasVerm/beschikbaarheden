@@ -64,6 +64,7 @@ const applicationTables = {
     showId: v.id("shows"),
     role: v.string(),
     startTime: v.optional(v.string()), // HH:MM format, optional override
+    endTime: v.optional(v.string()), // HH:MM format, optional override
     peopleNeeded: v.optional(v.number()),
     position: v.optional(v.number()), // For multiple people in same role
     personId: v.optional(v.id("people")), // Assigned person

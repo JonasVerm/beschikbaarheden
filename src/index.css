@@ -2,159 +2,219 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties for Dynamic Branding */
 :root {
-  --color-light: #ffffff;
-  --color-dark: #161616;
-  --brand-primary: #FAE682;
-  --brand-secondary: #F5E050;
-  --brand-accent: #FFED4E;
-  --brand-light: #FEF7CD;
-  --brand-dark: #161616;
+  --primary-color: #161616;
+  --secondary-color: #FAE682;
 }
 
-.accent-text {
-  @apply text-slate-600;
+/* Base styles */
+* {
+  box-sizing: border-box;
 }
 
 body {
-  font-family:
-    "Inter Variable",
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    "Noto Sans",
-    sans-serif,
-    "Apple Color Emoji",
-    "Segoe UI Emoji",
-    "Segoe UI Symbol",
-    "Noto Color Emoji";
-  color: var(--color-dark);
-  background: linear-gradient(135deg, #f9f9f9 0%, #f5f5f5 100%);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #ffffff;
+  min-height: 100vh;
 }
 
-/* Brand Colors */
-.bg-brand-primary { background-color: var(--brand-primary); }
-.bg-brand-secondary { background-color: var(--brand-secondary); }
-.bg-brand-accent { background-color: var(--brand-accent); }
-.bg-brand-light { background-color: var(--brand-light); }
-.bg-brand-dark { background-color: var(--brand-dark); }
+/* Glass effect for modern UI */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
 
-.text-brand-primary { color: var(--brand-primary); }
-.text-brand-secondary { color: var(--brand-secondary); }
-.text-brand-accent { color: var(--brand-accent); }
-.text-brand-dark { color: var(--brand-dark); }
-
-.border-brand-primary { border-color: var(--brand-primary); }
-.border-brand-secondary { border-color: var(--brand-secondary); }
-.border-brand-light { border-color: var(--brand-light); }
-
-/* Modern Card Styles */
+/* Modern card styling */
 .modern-card {
-  @apply bg-white rounded-2xl shadow-lg border border-gray-100 backdrop-blur-sm;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-.modern-card-hover {
-  @apply modern-card hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
-}
-
-/* Modern Button Styles */
+/* Button styles using CSS custom properties */
 .btn-primary {
-  @apply px-6 py-3 bg-brand-primary text-brand-dark rounded-xl font-semibold hover:bg-brand-secondary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+  background-color: var(--primary-color);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-secondary {
-  @apply px-6 py-3 bg-brand-secondary text-brand-dark rounded-xl font-semibold hover:bg-brand-primary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.btn-accent {
-  @apply px-6 py-3 bg-brand-accent text-brand-dark rounded-xl font-semibold hover:bg-brand-secondary transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+.btn-secondary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .btn-outline {
-  @apply px-6 py-3 border-2 border-brand-primary text-brand-primary rounded-xl font-semibold hover:bg-brand-primary hover:text-brand-dark transition-all duration-200;
+  background: transparent;
+  color: var(--primary-color);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 2px solid var(--primary-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.btn-danger {
-  @apply px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
-}
-
-.btn-success {
-  @apply px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+.btn-outline:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
 }
 
 .btn-gray {
-  @apply px-6 py-3 bg-gray-500 text-white rounded-xl font-semibold hover:bg-gray-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+  background-color: #6B7280;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Modern Input Styles */
+.btn-gray:hover {
+  background-color: #4B5563;
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background-color: #10B981;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-success:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: #EF4444;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-danger:hover {
+  background-color: #DC2626;
+  transform: translateY(-1px);
+}
+
+/* Input styles */
 .modern-input {
-  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-primary focus:ring-4 focus:ring-brand-light outline-none transition-all duration-200 bg-white;
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  background: white;
 }
 
-.modern-select {
-  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-brand-primary focus:ring-4 focus:ring-brand-light outline-none transition-all duration-200 bg-white;
+.modern-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(22, 22, 22, 0.1);
 }
 
-/* Gradient Backgrounds */
-.gradient-brand {
-  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+/* Brand colors using CSS custom properties */
+.text-brand-primary {
+  color: var(--primary-color);
+}
+
+.text-brand-secondary {
+  color: var(--secondary-color);
+}
+
+.bg-brand-primary {
+  background-color: var(--primary-color);
+}
+
+.bg-brand-secondary {
+  background-color: var(--secondary-color);
+}
+
+.border-brand-primary {
+  border-color: var(--primary-color);
+}
+
+.border-brand-secondary {
+  border-color: var(--secondary-color);
+}
+
+/* Gradient effects using CSS custom properties */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--primary-color) 0%, rgba(22, 22, 22, 0.8) 100%);
+}
+
+.gradient-secondary {
+  background: linear-gradient(135deg, var(--secondary-color) 0%, var(--secondary-color-fade) 100%);
 }
 
 .gradient-accent {
-  background: linear-gradient(135deg, var(--brand-secondary) 0%, var(--brand-accent) 100%);
+  background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
 }
 
-/* Glass Effect */
-.glass-effect {
-  @apply bg-white/80 backdrop-blur-md border border-white/20;
-}
-
-/* Navigation Styles */
-.nav-item {
-  @apply px-4 py-3 rounded-xl font-medium transition-all duration-200 cursor-pointer;
-}
-
-.nav-item-active {
-  @apply nav-item bg-brand-primary text-brand-dark shadow-lg;
-}
-
-.nav-item-inactive {
-  @apply nav-item text-gray-600 hover:bg-brand-light hover:text-brand-dark;
-}
-
-/* Status Badges */
-.badge-success {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800;
-}
-
-.badge-warning {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800;
-}
-
-.badge-error {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800;
-}
-
-.badge-info {
-  @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800;
-}
-
-/* Auth styles */
-.auth-input-field {
-  @apply modern-input;
-}
-
-.auth-button {
-  @apply btn-primary w-full;
+/* Text color for dark backgrounds */
+.text-brand-dark {
+  color: var(--primary-color);
 }
 
 /* Animations */
-@keyframes fadeInUp {
+@keyframes fade-in-up {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -165,19 +225,164 @@ body {
   }
 }
 
+@keyframes fall {
+  from {
+    transform: translateY(-30px) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out;
+  animation: fade-in-up 0.5s ease-out;
 }
 
-@keyframes pulse-brand {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline,
+  .btn-gray,
+  .btn-success,
+  .btn-danger {
+    padding: 10px 20px;
+    font-size: 14px;
   }
-  50% {
-    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  
+  .modern-input {
+    padding: 10px 14px;
+    font-size: 14px;
   }
 }
 
-.animate-pulse-brand {
-  animation: pulse-brand 2s infinite;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 22, 22, 0.8);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Status indicators */
+.status-available {
+  background-color: #10B981;
+  color: white;
+}
+
+.status-unavailable {
+  background-color: #EF4444;
+  color: white;
+}
+
+.status-assigned {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.status-no-response {
+  background-color: #6B7280;
+  color: white;
+}
+
+/* Table styles */
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.modern-table th {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.modern-table td {
+  padding: 16px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.modern-table tr:hover {
+  background-color: #F9FAFB;
+}
+
+/* Form styles */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-help {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #6B7280;
+}
+
+/* Alert styles */
+.alert {
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.alert-info {
+  background-color: #EBF8FF;
+  border: 1px solid #BEE3F8;
+  color: #2B6CB0;
+}
+
+.alert-success {
+  background-color: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+}
+
+.alert-warning {
+  background-color: #FFFBEB;
+  border: 1px solid #FED7AA;
+  color: #92400E;
+}
+
+.alert-error {
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #991B1B;
 }

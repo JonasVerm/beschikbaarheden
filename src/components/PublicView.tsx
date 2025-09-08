@@ -46,6 +46,11 @@ export function PublicView() {
   
   const peopleByGroup = useQuery(api.groups.getPeopleByGroup);
   const roles = useQuery(api.roles.listActive);
+  const brandingSettings = useQuery(api.organizationSettings.getBrandingSettings);
+  const logoUrl = useQuery(
+    api.storage.getUrl,
+    brandingSettings?.logoId ? { storageId: brandingSettings.logoId as any } : "skip"
+  );
   const shifts = useQuery(
     api.shifts.getAllShowsForPerson,
     selectedPersonId
@@ -357,13 +362,22 @@ export function PublicView() {
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="text-center mb-6 md:mb-8">
             <div className="flex justify-center mb-4">
-              <img 
-                src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
-                alt="Capitole Gent Logo"
-                className="h-12 md:h-16 w-auto object-contain rounded-lg shadow-md"
-              />
+              {logoUrl ? (
+                <img 
+                  src={logoUrl} 
+                  alt="Logo" 
+                  className="h-12 md:h-16 w-auto object-contain rounded-lg shadow-md bg-white"
+                />
+              ) : (
+                <div 
+                  className="h-12 md:h-16 w-12 md:w-16 rounded-lg shadow-md flex items-center justify-center text-white font-bold text-xl md:text-2xl" 
+                  style={{ backgroundColor: brandingSettings?.primaryColor || '#161616' }}
+                >
+                  {brandingSettings?.siteName?.charAt(0).toUpperCase() || 'C'}
+                </div>
+              )}
             </div>
-            <h2 className="text-xl md:text-2xl font-bold mb-2" style={{ color: '#161616' }}>Bevestig je identiteit</h2>
+            <h2 className="text-xl md:text-2xl font-bold mb-2 text-brand-primary">Bevestig je identiteit</h2>
             <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">
               Je hebt <span className="font-semibold">{pendingPerson?.name}</span> geselecteerd.
               <br />
@@ -390,8 +404,7 @@ export function PublicView() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="submit"
-                className="flex-1 py-4 md:py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg text-lg md:text-base"
-                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+                className="flex-1 py-4 md:py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg text-lg md:text-base bg-brand-secondary text-brand-primary"
               >
                 Bevestigen
               </button>
@@ -418,13 +431,22 @@ export function PublicView() {
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img 
-                src="https://scontent-bru2-1.xx.fbcdn.net/v/t39.30808-6/279177762_10166050644655257_1345365900563871413_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=iUV3ho7z1BIQ7kNvwFFs92S&_nc_oc=Adk1LLXRkrptrlboOl52uj6B1ARWGMN8K7e5krdciztoOFUF845Sl_QSmKuENJdv2lo&_nc_zt=23&_nc_ht=scontent-bru2-1.xx&_nc_gid=bEg0lBSMmykHPEf7vqzysg&oh=00_AfUJ1H403onQn_u7sPuT3Eo546EMcGdK2UkOezxj-mu4Iw&oe=68BA284B"
-                alt="Capitole Gent Logo"
-                className="h-16 md:h-20 w-auto object-contain rounded-lg shadow-md"
-              />
+              {logoUrl ? (
+                <img 
+                  src={logoUrl} 
+                  alt="Logo" 
+                  className="h-16 md:h-20 w-auto object-contain rounded-lg shadow-md bg-white"
+                />
+              ) : (
+                <div 
+                  className="h-16 md:h-20 w-16 md:w-20 rounded-lg shadow-md flex items-center justify-center text-white font-bold text-2xl md:text-3xl" 
+                  style={{ backgroundColor: brandingSettings?.primaryColor || '#161616' }}
+                >
+                  {brandingSettings?.siteName?.charAt(0).toUpperCase() || 'C'}
+                </div>
+              )}
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold" style={{ color: '#161616' }}>Selecteer je naam</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-brand-primary">Selecteer je naam</h2>
           </div>
           
           {peopleByGroup && peopleByGroup.length > 0 ? (
@@ -438,7 +460,7 @@ export function PublicView() {
                     >
                       {groupData.group.displayName.charAt(0).toUpperCase()}
                     </div>
-                    <h3 className="text-lg font-semibold" style={{ color: '#161616' }}>
+                    <h3 className="text-lg font-semibold text-brand-primary">
                       {groupData.group.displayName}
                     </h3>
                   </div>
@@ -450,9 +472,12 @@ export function PublicView() {
                           key={person._id}
                           onClick={() => handlePersonSelection(person._id)}
                           className="p-8 md:p-6 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group min-h-[80px] md:min-h-[70px] flex items-center justify-center"
-                          style={{ borderColor: '#FAE682', backgroundColor: '#fefefe' }}
+                          style={{ 
+                            backgroundColor: '#fefefe',
+                            borderColor: groupData.group.color
+                          }}
                         >
-                          <div className="font-semibold text-base md:text-sm group-hover:text-lg md:group-hover:text-base transition-all duration-200 leading-tight" style={{ color: '#161616' }}>
+                          <div className="font-semibold text-base md:text-sm group-hover:text-lg md:group-hover:text-base transition-all duration-200 leading-tight text-brand-primary">
                             {person.name}
                           </div>
                         </button>
@@ -483,7 +508,7 @@ export function PublicView() {
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 md:mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedShow.name}</h2>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2 text-brand-primary">{selectedShow.name}</h2>
               <div className="flex items-center space-x-2 text-gray-600">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -519,8 +544,7 @@ export function PublicView() {
             </div>
             <button
               onClick={() => setSelectedShow(null)}
-              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base"
-              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              className="w-full md:w-auto px-4 md:px-6 py-4 md:py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-base md:text-base bg-brand-secondary text-brand-primary"
             >
               <span className="md:hidden">← Terug</span>
               <span className="hidden md:inline">← Terug naar Kalender</span>
@@ -534,13 +558,13 @@ export function PublicView() {
               }`}>
                 <div className="flex items-center space-x-4 w-full md:w-auto">
                   {shift.startTime && (
-                    <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg text-white font-bold text-sm" style={{ backgroundColor: '#161616' }}>
+                    <div className="flex flex-col items-center justify-center w-16 h-16 rounded-lg text-white font-bold text-sm bg-brand-primary">
                       <div className="text-xs opacity-75">START</div>
                       <div className="text-lg leading-none">{shift.startTime}</div>
                     </div>
                   )}
                   <div>
-                    <div className="font-semibold text-xl md:text-lg" style={{ color: '#161616' }}>
+                    <div className="font-semibold text-xl md:text-lg text-brand-primary">
                       {shift.role}
                       {shift.hasUnrespondedShifts && shift.availabilityStatus === 'open' && (
                         <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full animate-pulse">
@@ -639,7 +663,7 @@ export function PublicView() {
       <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
           <div>
-            <h2 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: '#161616' }}>{selectedPerson?.name}</h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-2 text-brand-primary">{selectedPerson?.name}</h2>
             <div className="flex items-center space-x-2 text-gray-600">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -674,8 +698,7 @@ export function PublicView() {
                 setSelectedPersonId(null);
                 setOptimisticAvailability(new Map()); // Clear optimistic state when changing person
               }}
-              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm"
-              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm bg-brand-secondary text-brand-primary"
             >
               <span className="md:hidden">Wijzigen</span>
               <span className="hidden md:inline">Persoon Wijzigen</span>
@@ -686,17 +709,15 @@ export function PublicView() {
         <div className="flex justify-between items-center mb-6 md:mb-8 gap-2">
           <button
             onClick={prevMonth}
-            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0"
-            style={{ backgroundColor: '#161616' }}
+            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0 bg-brand-primary"
           >
             <span className="md:hidden">←</span>
             <span className="hidden md:inline">← Vorige</span>
           </button>
-          <h3 className="text-lg md:text-2xl font-bold text-center flex-1 px-2" style={{ color: '#161616' }}>{monthName}</h3>
+          <h3 className="text-lg md:text-2xl font-bold text-center flex-1 px-2 text-brand-primary">{monthName}</h3>
           <button
             onClick={nextMonth}
-            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0"
-            style={{ backgroundColor: '#161616' }}
+            className="px-3 md:px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl text-sm md:text-base flex-shrink-0 bg-brand-primary"
           >
             <span className="md:hidden">→</span>
             <span className="hidden md:inline">Volgende →</span>
@@ -707,7 +728,7 @@ export function PublicView() {
         <div className="grid grid-cols-7 gap-1 mb-4 text-xs md:text-sm">
           {/* Week day headers */}
           {weekDays.map(day => (
-            <div key={day} className="p-1 md:p-2 text-center font-semibold text-gray-600 text-xs md:text-sm" style={{ backgroundColor: '#FAE682' }}>
+            <div key={day} className="p-1 md:p-2 text-center font-semibold text-gray-600 text-xs md:text-sm bg-brand-secondary">
               {day}
             </div>
           ))}
@@ -724,9 +745,9 @@ export function PublicView() {
                     : 'bg-gray-100 text-gray-400 border-gray-200'
               }`}
               style={calDay.isCurrentMonth && calDay.shows.length > 0 ? { 
-                backgroundColor: '#FAE682', 
-                borderColor: '#F59E0B',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                backgroundColor: 'var(--secondary-color)', 
+                borderColor: 'var(--primary-color)',
+                boxShadow: '0 4px 12px rgba(22, 22, 22, 0.3)'
               } : {}}
             >
               <div className={`font-semibold mb-1 ${
@@ -749,7 +770,7 @@ export function PublicView() {
                   >
                     <div className="font-medium truncate text-xs md:text-sm hidden md:block">{show.name}</div>
                     <div className="flex items-center justify-between mt-1 hidden md:flex">
-                      <span className="text-xs" style={{ color: '#FAE682' }}>{show.startTime}</span>
+                      <span className="text-xs text-brand-secondary">{show.startTime}</span>
                       <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
                         show.availabilityStatus === 'open' 
                           ? show.hasUnrespondedShifts 

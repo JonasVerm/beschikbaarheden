@@ -29,10 +29,7 @@ export function MonthlyAssignments() {
     month: currentDate.getMonth() + 1,
   });
   
-  const fairnessData = useQuery(api.assignments.getFairnessReport, {
-    year: currentDate.getFullYear(),
-    month: currentDate.getMonth() + 1,
-  });
+
 
   // Get roles for Excel export
   const allRoles = useQuery(api.roles.listActive);
@@ -725,7 +722,7 @@ export function MonthlyAssignments() {
                   viewMode === 'calendar' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
                 }`}
               >
-                📅 Kalender
+                Kalender
               </button>
               <button
                 onClick={() => setViewMode('list')}
@@ -733,24 +730,22 @@ export function MonthlyAssignments() {
                   viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
                 }`}
               >
-                📋 Lijst
+                Lijst
               </button>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={prevMonth}
-                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg bg-brand-secondary text-brand-primary"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <span className="font-bold text-xl px-4" style={{ color: '#161616' }}>{monthName}</span>
+              <span className="font-bold text-xl px-4 text-brand-primary">{monthName}</span>
               <button
                 onClick={nextMonth}
-                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg bg-brand-secondary text-brand-primary"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -761,14 +756,14 @@ export function MonthlyAssignments() {
         </div>
 
         {/* Stats Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-8">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-600 text-sm font-medium">Totaal Diensten</p>
-                <p className="text-3xl font-bold text-blue-900">{stats.totalShifts}</p>
+                <p className="text-gray-600 text-sm font-medium">Totaal Diensten</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.totalShifts}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
@@ -776,13 +771,13 @@ export function MonthlyAssignments() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-600 text-sm font-medium">Toegewezen</p>
-                <p className="text-3xl font-bold text-green-900">{stats.assignedShifts}</p>
+                <p className="text-gray-600 text-sm font-medium">Toegewezen</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.assignedShifts}</p>
               </div>
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
@@ -790,13 +785,13 @@ export function MonthlyAssignments() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-xl border border-red-200">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-600 text-sm font-medium">Niet Toegewezen</p>
-                <p className="text-3xl font-bold text-red-900">{stats.unassignedShifts}</p>
+                <p className="text-gray-600 text-sm font-medium">Niet Toegewezen</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.unassignedShifts}</p>
               </div>
-              <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -804,13 +799,13 @@ export function MonthlyAssignments() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-600 text-sm font-medium">Toewijzingspercentage</p>
-                <p className="text-3xl font-bold text-purple-900">{stats.assignmentRate}%</p>
+                <p className="text-gray-600 text-sm font-medium">Toewijzingspercentage</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.assignmentRate}%</p>
               </div>
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
@@ -818,21 +813,7 @@ export function MonthlyAssignments() {
             </div>
           </div>
 
-          {fairnessData && (
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl border border-indigo-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-indigo-600 text-sm font-medium">Eerlijkheidsscore</p>
-                  <p className="text-3xl font-bold text-indigo-900">{fairnessData.metrics.fairnessScore}%</p>
-                </div>
-                <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          )}
+
         </div>
 
         {/* Action Buttons */}

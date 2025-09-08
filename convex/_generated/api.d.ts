@@ -19,6 +19,8 @@ import type * as assignments from "../assignments.js";
 import type * as auth from "../auth.js";
 import type * as authCallbacks from "../authCallbacks.js";
 import type * as availability from "../availability.js";
+import type * as branding from "../branding.js";
+import type * as calendarExport from "../calendarExport.js";
 import type * as cleanup from "../cleanup.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
@@ -34,6 +36,7 @@ import type * as router from "../router.js";
 import type * as shifts from "../shifts.js";
 import type * as shows from "../shows.js";
 import type * as staffOverview from "../staffOverview.js";
+import type * as storage from "../storage.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -50,6 +53,8 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authCallbacks: typeof authCallbacks;
   availability: typeof availability;
+  branding: typeof branding;
+  calendarExport: typeof calendarExport;
   cleanup: typeof cleanup;
   groups: typeof groups;
   http: typeof http;
@@ -65,6 +70,7 @@ declare const fullApi: ApiFromModules<{
   shifts: typeof shifts;
   shows: typeof shows;
   staffOverview: typeof staffOverview;
+  storage: typeof storage;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import * as XLSX from 'xlsx';
 import { toast } from "sonner";
+import { downloadICSFile } from "../utils/icsGenerator";
 
 export function StaffOverview() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -19,6 +20,7 @@ export function StaffOverview() {
   });
 
   const groups = useQuery(api.groups.list);
+  const exportCalendarAction = useAction(api.calendarExport.exportCalendarForPerson);
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
@@ -80,6 +82,25 @@ export function StaffOverview() {
       }));
   };
 
+  const exportCalendar = async (personId: string, personName: string) => {
+    try {
+      const data = await exportCalendarAction({
+        personId: personId as any,
+        year: currentDate.getFullYear(),
+        month: currentDate.getMonth() + 1,
+      });
+      
+      if (data) {
+        downloadICSFile(data);
+        toast.success(`Kalender geëxporteerd voor ${personName}!`);
+      } else {
+        toast.error('Geen gegevens gevonden voor kalender export');
+      }
+    } catch (error) {
+      toast.error('Fout bij kalender export');
+    }
+  };
+
   const exportToExcel = () => {
     if (!staffOverview || staffOverview.length === 0) {
       toast.error('Geen gegevens om te exporteren');
@@ -99,7 +120,7 @@ export function StaffOverview() {
       excelData.push(['Totaal Medewerkers', workloadSummary.totalStaff]);
       excelData.push(['Totaal Diensten', workloadSummary.totalShifts]);
       excelData.push(['Toegewezen Diensten', workloadSummary.totalAssigned]);
-      excelData.push(['Gemiddeld per Medewerker', workloadSummary.averageAssignments]);
+
       excelData.push(['Algemene Responspercentage', workloadSummary.overallResponseRate + '%']);
       excelData.push([]);
     }
@@ -214,7 +235,7 @@ export function StaffOverview() {
   if (!staffOverview || !workloadSummary || !groups) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="loading-spinner h-8 w-8"></div>
       </div>
     );
   }
@@ -240,18 +261,16 @@ export function StaffOverview() {
             <div className="flex items-center gap-2">
               <button
                 onClick={prevMonth}
-                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+                className="btn-secondary"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <span className="font-bold text-xl px-4" style={{ color: '#161616' }}>{monthName}</span>
+              <span className="font-bold text-xl px-4 text-brand-primary">{monthName}</span>
               <button
                 onClick={nextMonth}
-                className="p-3 rounded-xl hover:opacity-80 transition-all duration-200 shadow-md hover:shadow-lg"
-                style={{ backgroundColor: '#FAE682', color: '#161616' }}
+                className="btn-secondary"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -262,14 +281,14 @@ export function StaffOverview() {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mt-8">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-600 text-sm font-medium">Actieve Medewerkers</p>
-                <p className="text-3xl font-bold text-blue-900">{workloadSummary.totalStaff}</p>
+                <p className="text-gray-600 text-sm font-medium">Actieve Medewerkers</p>
+                <p className="text-3xl font-bold text-gray-900">{workloadSummary.totalStaff}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -277,27 +296,15 @@ export function StaffOverview() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-600 text-sm font-medium">Gemiddeld Toegewezen</p>
-                <p className="text-3xl font-bold text-green-900">{workloadSummary.averageAssignments}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-600 text-sm font-medium">Responspercentage</p>
-                <p className="text-3xl font-bold text-purple-900">{workloadSummary.overallResponseRate}%</p>
+                <p className="text-gray-600 text-sm font-medium">Responspercentage</p>
+                <p className="text-3xl font-bold text-gray-900">{workloadSummary.overallResponseRate}%</p>
               </div>
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -305,13 +312,13 @@ export function StaffOverview() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-red-50 to-red-100 p-6 rounded-xl border border-red-200">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-600 text-sm font-medium">Niet Beschikbaar</p>
-                <p className="text-3xl font-bold text-red-900">{workloadSummary.totalUnavailable}</p>
+                <p className="text-gray-600 text-sm font-medium">Niet Beschikbaar</p>
+                <p className="text-3xl font-bold text-gray-900">{workloadSummary.totalUnavailable}</p>
               </div>
-              <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -319,13 +326,13 @@ export function StaffOverview() {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200">
+          <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-600 text-sm font-medium">Geen Reactie</p>
-                <p className="text-3xl font-bold text-orange-900">{workloadSummary.totalNoResponse}</p>
+                <p className="text-gray-600 text-sm font-medium">Geen Reactie</p>
+                <p className="text-3xl font-bold text-gray-900">{workloadSummary.totalNoResponse}</p>
               </div>
-              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gray-400 rounded-xl flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -366,8 +373,7 @@ export function StaffOverview() {
             </div>
             <button
               onClick={() => setSelectedPersonId(null)}
-              className="px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md"
-              style={{ backgroundColor: '#FAE682', color: '#161616' }}
+              className="btn-secondary"
             >
               ← Terug naar Overzicht
             </button>
@@ -375,21 +381,21 @@ export function StaffOverview() {
 
           {/* Personal Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="text-2xl font-bold text-blue-900">{selectedStaff.stats.totalShifts}</div>
-              <div className="text-xs text-blue-600">Totaal Diensten</div>
+            <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{selectedStaff.stats.totalShifts}</div>
+              <div className="text-xs text-gray-600">Totaal Diensten</div>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-xl border border-green-200">
-              <div className="text-2xl font-bold text-green-900">{selectedStaff.stats.assignedShifts}</div>
-              <div className="text-xs text-green-600">Toegewezen</div>
+            <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{selectedStaff.stats.assignedShifts}</div>
+              <div className="text-xs text-gray-600">Toegewezen</div>
             </div>
-            <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="text-2xl font-bold text-blue-900">{selectedStaff.stats.availableShifts}</div>
-              <div className="text-xs text-blue-600">Beschikbaar</div>
+            <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{selectedStaff.stats.availableShifts}</div>
+              <div className="text-xs text-gray-600">Beschikbaar</div>
             </div>
-            <div className="text-center p-4 bg-red-50 rounded-xl border border-red-200">
-              <div className="text-2xl font-bold text-red-900">{selectedStaff.stats.unavailableShifts}</div>
-              <div className="text-xs text-red-600">Niet Beschikbaar</div>
+            <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{selectedStaff.stats.unavailableShifts}</div>
+              <div className="text-xs text-gray-600">Niet Beschikbaar</div>
             </div>
             <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-200">
               <div className="text-2xl font-bold text-gray-900">{selectedStaff.stats.noResponseShifts}</div>
@@ -432,7 +438,7 @@ export function StaffOverview() {
                     <div key={shift._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-4">
                         {shift.startTime && (
-                          <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg text-white font-bold text-xs" style={{ backgroundColor: '#161616' }}>
+                          <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg text-white font-bold text-xs bg-brand-primary">
                             <div className="text-xs opacity-75">START</div>
                             <div className="text-sm leading-none">{shift.startTime}</div>
                           </div>
@@ -483,7 +489,7 @@ export function StaffOverview() {
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-3">
-                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: '#161616' }}>
+                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-brand-primary">
                             {staff.person.name.charAt(0).toUpperCase()}
                           </div>
                           <div>

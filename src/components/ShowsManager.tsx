@@ -549,15 +549,15 @@ export function ShowsManager() {
           <button
             onClick={prevMonth}
             className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
-            style={{ backgroundColor: '#161616' }}
+            style={{ backgroundColor: 'var(--primary-color)' }}
           >
             ← Vorige
           </button>
-          <h3 className="text-2xl font-bold" style={{ color: '#161616' }}>{monthName}</h3>
+          <h3 className="text-2xl font-bold" style={{ color: 'var(--primary-color)' }}>{monthName}</h3>
           <button
             onClick={nextMonth}
             className="px-6 py-3 text-white rounded-xl font-medium hover:opacity-90 transition-all duration-200 shadow-lg hover:shadow-xl"
-            style={{ backgroundColor: '#161616' }}
+            style={{ backgroundColor: 'var(--primary-color)' }}
           >
             Volgende →
           </button>
@@ -567,7 +567,7 @@ export function ShowsManager() {
         <div className="grid grid-cols-7 gap-1 mb-4">
           {/* Week day headers */}
           {weekDays.map(day => (
-            <div key={day} className="p-2 text-center font-semibold text-gray-600" style={{ backgroundColor: '#FAE682' }}>
+            <div key={day} className="p-2 text-center font-semibold text-gray-600" style={{ backgroundColor: 'var(--secondary-color)' }}>
               {day}
             </div>
           ))}
@@ -584,9 +584,9 @@ export function ShowsManager() {
                     : 'bg-gray-100 text-gray-400 border-gray-200'
               }`}
               style={calDay.isCurrentMonth && calDay.shows.length > 0 ? { 
-                backgroundColor: '#FAE682', 
-                borderColor: '#F59E0B',
-                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)'
+                backgroundColor: 'var(--secondary-color)', 
+                borderColor: 'var(--secondary-color)',
+                boxShadow: '0 4px 12px var(--secondary-color-fade)'
               } : {}}
             >
               <div className={`font-semibold mb-1 ${
@@ -603,12 +603,12 @@ export function ShowsManager() {
                   <div key={show._id} className="relative group">
                     <div
                       className="w-full text-left p-2 text-xs text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer"
-                      style={{ backgroundColor: '#161616' }}
+                      style={{ backgroundColor: 'var(--primary-color)' }}
                       onClick={() => setSelectedShowId(show._id)}
                     >
                       <div className="font-medium truncate">{show.name}</div>
                       <div className="flex items-center justify-between mt-1">
-                        <span style={{ color: '#FAE682' }}>{show.startTime}</span>
+                        <span style={{ color: 'var(--secondary-color)' }}>{show.startTime}</span>
                         <div className="w-2 h-2 rounded-full bg-green-400"></div>
                       </div>
                     </div>

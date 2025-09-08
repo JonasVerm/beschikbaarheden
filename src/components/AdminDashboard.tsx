@@ -4,64 +4,169 @@ import { api } from "../../convex/_generated/api";
 import { ShowsManager } from "./ShowsManager";
 import { PeopleManager } from "./PeopleManager";
 import { RoleManager } from "./RoleManager";
-import { RoleConfigManager } from "./RoleConfigManager";
 import { GroupManager } from "./GroupManager";
+import { MonthlyAssignments } from "./MonthlyAssignments";
 import { StaffOverview } from "./StaffOverview";
+import { AdminAvailabilityEditor } from "./AdminAvailabilityEditor";
+import { MessagesManager } from "./MessagesManager";
 import { OrganizationSettings } from "./OrganizationSettings";
 import { AdminManager } from "./AdminManager";
 import { DatabaseCleanup } from "./DatabaseCleanup";
-import { MessagesManager } from "./MessagesManager";
-import { MonthlyAssignments } from "./MonthlyAssignments";
-import { AdminAvailabilityEditor } from "./AdminAvailabilityEditor";
+import { RoleConfigManager } from "./RoleConfigManager";
 
-type TabType = 'shows' | 'people' | 'roles' | 'roleconfig' | 'groups' | 'overview' | 'assignments' | 'availability' | 'messages' | 'settings' | 'admins' | 'cleanup';
+type TabType = 
+  | 'shows' 
+  | 'people' 
+  | 'roles' 
+  | 'groups' 
+  | 'assignments' 
+  | 'overview' 
+  | 'availability' 
+  | 'messages' 
+  | 'settings' 
+  | 'admins' 
+  | 'cleanup'
+  | 'roleconfig';
 
 export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('shows');
-  const [isManagementExpanded, setIsManagementExpanded] = useState(false);
-  const unreadCount = useQuery(api.messages.getUnreadCount);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
   const currentUser = useQuery(api.auth.loggedInUser);
+  const isSuperAdmin = currentUser?.adminRole === 'superadmin';
 
-  // Define primary tabs (always visible)
-  const primaryTabs = [
-    { id: 'shows' as TabType, label: 'Shows', adminLevel: 'admin' },
-    { id: 'assignments' as TabType, label: 'Toewijzingen', adminLevel: 'admin' },
-    { id: 'availability' as TabType, label: 'Beschikbaarheid', adminLevel: 'admin' },
-    { id: 'overview' as TabType, label: 'Overzicht', adminLevel: 'admin' },
-    { id: 'messages' as TabType, label: 'Berichten', badge: unreadCount || 0, adminLevel: 'admin' },
+  // Section 1: Operations & Shows
+  const operationsMenuItems = [
+    {
+      id: 'shows' as TabType,
+      label: 'Voorstellingen',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'assignments' as TabType,
+      label: 'Toewijzingen',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'overview' as TabType,
+      label: 'Overzicht',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'availability' as TabType,
+      label: 'Beschikbaarheid',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a1 1 0 01-1-1V9a1 1 0 011-1h1a2 2 0 100-4H4a1 1 0 01-1-1V4a1 1 0 011-1h3a1 1 0 011 1v1z" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'messages' as TabType,
+      label: 'Berichten',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+      available: true
+    }
   ];
 
-  // Define management tabs (collapsible)
-  const managementTabs = [
-    { id: 'people' as TabType, label: 'Medewerkers', adminLevel: 'admin' },
-    { id: 'roles' as TabType, label: 'Functies', adminLevel: 'admin' },
-    { id: 'roleconfig' as TabType, label: 'Functie Tijden', adminLevel: 'admin' },
-    { id: 'groups' as TabType, label: 'Groepen', adminLevel: 'admin' },
-    { id: 'settings' as TabType, label: 'Instellingen', adminLevel: 'admin' },
-    { id: 'admins' as TabType, label: 'Beheerders', adminLevel: 'superadmin' },
-    { id: 'cleanup' as TabType, label: 'Database', adminLevel: 'superadmin' },
+  // Section 2: Management
+  const managementMenuItems = [
+    {
+      id: 'people' as TabType,
+      label: 'Medewerkers',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'roles' as TabType,
+      label: 'Functies',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 00-2 2H8a2 2 0 00-2-2V6m8 0H8m0 0v-.5A2.5 2.5 0 0110.5 3h3A2.5 2.5 0 0116 5.5V6m-8 0h8" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'roleconfig' as TabType,
+      label: 'Functie Config',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+        </svg>
+      ),
+      available: isSuperAdmin
+    },
+    {
+      id: 'groups' as TabType,
+      label: 'Groepen',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      available: true
+    },
+    {
+      id: 'settings' as TabType,
+      label: 'Instellingen',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      available: true
+    }
   ];
 
-  // Filter tabs based on user's admin level
-  const filteredPrimaryTabs = primaryTabs.filter(tab => {
-    if (tab.adminLevel === 'superadmin') {
-      return currentUser?.adminRole === 'superadmin';
+  // Section 3: System (Super Admin only)
+  const systemMenuItems = [
+    {
+      id: 'admins' as TabType,
+      label: 'Beheerders',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      ),
+      available: isSuperAdmin
+    },
+    {
+      id: 'cleanup' as TabType,
+      label: 'Database Cleanup',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      ),
+      available: isSuperAdmin
     }
-    return currentUser?.adminRole === 'admin' || currentUser?.adminRole === 'superadmin';
-  });
-
-  const filteredManagementTabs = managementTabs.filter(tab => {
-    if (tab.adminLevel === 'superadmin') {
-      return currentUser?.adminRole === 'superadmin';
-    }
-    return currentUser?.adminRole === 'admin' || currentUser?.adminRole === 'superadmin';
-  });
-
-  // Check if active tab is in management section
-  const isManagementTabActive = filteredManagementTabs.some(tab => tab.id === activeTab);
-
-  // Auto-expand management section if a management tab is active
-  const shouldExpandManagement = isManagementExpanded || isManagementTabActive;
+  ];
 
   const renderContent = () => {
     switch (activeTab) {
@@ -71,14 +176,12 @@ export function AdminDashboard() {
         return <PeopleManager />;
       case 'roles':
         return <RoleManager />;
-      case 'roleconfig':
-        return <RoleConfigManager />;
       case 'groups':
         return <GroupManager />;
-      case 'overview':
-        return <StaffOverview />;
       case 'assignments':
         return <MonthlyAssignments />;
+      case 'overview':
+        return <StaffOverview />;
       case 'availability':
         return <AdminAvailabilityEditor />;
       case 'messages':
@@ -87,6 +190,8 @@ export function AdminDashboard() {
         return <OrganizationSettings />;
       case 'admins':
         return <AdminManager />;
+      case 'roleconfig':
+        return <RoleConfigManager />;
       case 'cleanup':
         return <DatabaseCleanup />;
       default:
@@ -94,129 +199,95 @@ export function AdminDashboard() {
     }
   };
 
+  const renderMenuSection = (items: typeof operationsMenuItems, sectionTitle?: string) => (
+    <div className="mb-6">
+      {!sidebarCollapsed && sectionTitle && (
+        <div className="px-4 mb-3">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{sectionTitle}</h3>
+        </div>
+      )}
+      <div className="space-y-1">
+        {items.filter(item => item.available).map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setActiveTab(item.id)}
+            className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center px-2' : 'px-4'} py-3 rounded-xl text-left transition-all duration-200 group ${
+              activeTab === item.id
+                ? 'text-white shadow-lg bg-brand-primary'
+                : 'text-gray-700 hover:bg-white/20 hover:shadow-md'
+            }`}
+            title={sidebarCollapsed ? item.label : undefined}
+          >
+            <span className={`flex-shrink-0 ${activeTab === item.id ? 'text-white' : 'text-gray-600 group-hover:text-gray-800'}`}>
+              {item.icon}
+            </span>
+            {!sidebarCollapsed && (
+              <span className="ml-3 font-medium">{item.label}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="py-6">
-            
-            {/* Primary Navigation */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-                  Planning & Overzicht
-                </h2>
-                <div className="h-px bg-gray-200 flex-1 ml-4"></div>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                {filteredPrimaryTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`relative group px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-center ${
-                      activeTab === tab.id
-                        ? 'text-white shadow-lg'
-                        : 'text-gray-700 bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md'
-                    }`}
-                    style={activeTab === tab.id ? { backgroundColor: '#161616' } : {}}
-                  >
-                    <div className="flex items-center justify-center space-x-2">
-                      <span>{tab.label}</span>
-                      {tab.badge !== undefined && tab.badge > 0 && (
-                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] animate-pulse">
-                          {tab.badge > 99 ? '99+' : tab.badge}
-                        </span>
-                      )}
-                    </div>
-                    {activeTab === tab.id && (
-                      <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-lg" style={{ backgroundColor: '#FAE682' }}></div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Management Navigation */}
-            <div>
+    <div className="flex h-full w-full">
+      {/* Sidebar */}
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 ease-in-out flex-shrink-0`}>
+        <div className="h-full glass-effect border-r border-white/20 shadow-lg">
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-white/20">
+            <div className="flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <h2 className="text-lg font-bold text-gray-900">Admin Menu</h2>
+              )}
               <button
-                onClick={() => setIsManagementExpanded(!isManagementExpanded)}
-                className="w-full flex items-center justify-between mb-4 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-2 rounded-lg hover:bg-white/20 transition-all duration-200"
+                title={sidebarCollapsed ? "Uitklappen" : "Inklappen"}
               >
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">
-                    Beheer & Instellingen
-                  </h2>
-                  {isManagementTabActive && (
-                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#FAE682' }}></div>
-                  )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="h-px bg-gray-200 w-16"></div>
-                  <svg 
-                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${shouldExpandManagement ? 'rotate-180' : ''}`} 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
+                <svg 
+                  className={`w-5 h-5 text-gray-700 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
               </button>
-              
-              {/* Collapsible Management Tabs */}
-              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                shouldExpandManagement ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-              }`}>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pl-6">
-                  {filteredManagementTabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        if (!isManagementExpanded) {
-                          setIsManagementExpanded(true);
-                        }
-                      }}
-                      className={`relative group px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-center ${
-                        activeTab === tab.id
-                          ? 'text-black shadow-lg'
-                          : 'text-gray-700 bg-white border border-gray-200 hover:border-gray-300 hover:shadow-md'
-                      }`}
-                      style={activeTab === tab.id ? { backgroundColor: '#FAE682' } : {}}
-                    >
-                      <div className="flex items-center justify-center space-x-2">
-                        <span>{tab.label}</span>
-                        {tab.adminLevel === 'superadmin' && (
-                          <span className="px-1.5 py-0.5 bg-gray-800 text-white text-xs rounded font-bold">SA</span>
-                        )}
-                      </div>
-                      {activeTab === tab.id && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-lg" style={{ backgroundColor: '#161616' }}></div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
+
+          {/* Menu Items */}
+          <nav className="p-2 overflow-y-auto h-full">
+            {/* Operations & Shows Section */}
+            {renderMenuSection(operationsMenuItems, sidebarCollapsed ? undefined : "Operaties")}
+            
+            {/* Separator */}
+            {!sidebarCollapsed && <div className="border-t border-white/20 mx-4 mb-6"></div>}
+            
+            {/* Management Section */}
+            {renderMenuSection(managementMenuItems, sidebarCollapsed ? undefined : "Beheer")}
+            
+            {/* System Section (Super Admin only) */}
+            {isSuperAdmin && (
+              <>
+                {!sidebarCollapsed && <div className="border-t border-white/20 mx-4 mb-6"></div>}
+                {renderMenuSection(systemMenuItems, sidebarCollapsed ? undefined : "Systeem")}
+              </>
+            )}
+          </nav>
         </div>
-      </nav>
+      </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {renderContent()}
-      </main>
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <div className="min-h-full p-6">
+            {renderContent()}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

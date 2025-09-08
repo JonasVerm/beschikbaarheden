@@ -41,7 +41,7 @@ export function PasswordPrompt({ onPasswordVerified, onAdminLogin }: Props) {
       <div className="max-w-md w-full mx-4">
         <div className="modern-card p-8 animate-fade-in-up">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 gradient-brand rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 gradient-accent rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-brand-dark font-bold text-2xl">C</span>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Capitole Gent</h1>
