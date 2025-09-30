@@ -20,8 +20,10 @@ export const sendMessage = mutation({
       personId: args.personId,
       personName: person.name,
       subject: args.subject,
+      message: args.content,
       content: args.content,
       isRead: false,
+      createdAt: Date.now(),
     });
   },
 });

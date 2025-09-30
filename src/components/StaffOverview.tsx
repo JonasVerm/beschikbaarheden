@@ -445,8 +445,8 @@ export function StaffOverview() {
                         )}
                         <div>
                           <div className="font-semibold text-gray-900">{shift.role}</div>
-                          {shift.position && (
-                            <div className="text-sm text-gray-500">Positie #{shift.position}</div>
+                          {shift.positions && shift.positions > 1 && (
+                            <div className="text-sm text-gray-500">{shift.positions} posities</div>
                           )}
                         </div>
                       </div>

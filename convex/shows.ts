@@ -30,7 +30,6 @@ export const create = mutation({
       startTime: args.startTime,
       openDate: args.openDate,
       closeDate: args.closeDate,
-      roles: args.roles,
       isActive: true,
     });
 
@@ -61,8 +60,10 @@ export const create = mutation({
           await ctx.db.insert("shifts", {
             showId,
             role: roleName,
+            positions: 1,
             peopleNeeded: 1,
             startTime,
+            isActive: true,
           });
         } else {
           // Multiple shifts for this role (one per position)
@@ -70,9 +71,10 @@ export const create = mutation({
             await ctx.db.insert("shifts", {
               showId,
               role: roleName,
+              positions: peopleNeeded,
               peopleNeeded,
-              position,
               startTime,
+              isActive: true,
             });
           }
         }
@@ -122,17 +124,25 @@ export const update = mutation({
       startTime: args.startTime,
       openDate: args.openDate,
       closeDate: args.closeDate,
-      roles: args.roles,
     });
 
-    // Delete all existing shifts for this show
+    // Get existing shifts for this show
     const existingShifts = await ctx.db
       .query("shifts")
       .withIndex("by_show", (q) => q.eq("showId", args.showId))
       .collect();
     
-    // Delete all availability records for these shifts first
+    // Group existing shifts by role
+    const existingShiftsByRole: Record<string, any[]> = {};
     for (const shift of existingShifts) {
+      if (!existingShiftsByRole[shift.role]) {
+        existingShiftsByRole[shift.role] = [];
+      }
+      existingShiftsByRole[shift.role].push(shift);
+    }
+
+    // Helper function to safely delete a shift and its availabilities
+    const deleteShiftSafely = async (shift: any) => {
       const availabilities = await ctx.db
         .query("availability")
         .filter((q) => q.eq(q.field("shiftId"), shift._id))
@@ -142,11 +152,10 @@ export const update = mutation({
         await ctx.db.delete(availability._id);
       }
       
-      // Delete the shift
       await ctx.db.delete(shift._id);
-    }
+    };
 
-    // Create new shifts based on updated roles
+    // Process each role in the updated requirements
     for (const [roleName, peopleNeeded] of Object.entries(args.roles)) {
       if (peopleNeeded > 0) {
         // Get role configuration for start time calculation
@@ -167,27 +176,80 @@ export const update = mutation({
         const shiftStartDate = new Date(showDate.getTime() - (hoursBeforeShow * 60 * 60 * 1000));
         const startTime = `${String(shiftStartDate.getHours()).padStart(2, '0')}:${String(shiftStartDate.getMinutes()).padStart(2, '0')}`;
         
-        // Create shifts based on number of people needed
-        if (peopleNeeded === 1) {
-          // Single shift for this role
-          await ctx.db.insert("shifts", {
-            showId: args.showId,
-            role: roleName,
-            peopleNeeded: 1,
-            startTime,
-          });
-        } else {
-          // Multiple shifts for this role (one per position)
-          for (let position = 1; position <= peopleNeeded; position++) {
+        const existingShiftsForRole = existingShiftsByRole[roleName] || [];
+        const currentCount = existingShiftsForRole.length;
+        
+        if (peopleNeeded > currentCount) {
+          // Need to add more shifts - add new ones and update existing ones
+          const shiftsToAdd = peopleNeeded - currentCount;
+          
+          // Update existing shifts with new position count and start time
+          for (const shift of existingShiftsForRole) {
+            await ctx.db.patch(shift._id, {
+              positions: peopleNeeded,
+              peopleNeeded,
+              startTime,
+            });
+          }
+          
+          // Add new shifts
+          for (let i = 0; i < shiftsToAdd; i++) {
             await ctx.db.insert("shifts", {
               showId: args.showId,
               role: roleName,
+              positions: peopleNeeded,
+              peopleNeeded: peopleNeeded === 1 ? 1 : peopleNeeded,
+              startTime,
+              isActive: true,
+            });
+          }
+        } else if (peopleNeeded < currentCount) {
+          // Need to remove some shifts - prioritize removing unassigned ones
+          const shiftsToRemove = currentCount - peopleNeeded;
+          
+          // Sort shifts: unassigned first, then assigned
+          const sortedShifts = [...existingShiftsForRole].sort((a, b) => {
+            const aAssigned = a.personId || a.isSecuAssigned;
+            const bAssigned = b.personId || b.isSecuAssigned;
+            if (aAssigned && !bAssigned) return 1;
+            if (!aAssigned && bAssigned) return -1;
+            return 0;
+          });
+          
+          // Remove excess shifts
+          for (let i = 0; i < shiftsToRemove; i++) {
+            await deleteShiftSafely(sortedShifts[i]);
+          }
+          
+          // Update remaining shifts
+          const remainingShifts = sortedShifts.slice(shiftsToRemove);
+          for (const shift of remainingShifts) {
+            await ctx.db.patch(shift._id, {
+              positions: peopleNeeded,
               peopleNeeded,
-              position,
+              startTime,
+            });
+          }
+        } else {
+          // Same number of shifts - just update them
+          for (const shift of existingShiftsForRole) {
+            await ctx.db.patch(shift._id, {
+              positions: peopleNeeded,
+              peopleNeeded: peopleNeeded === 1 ? 1 : peopleNeeded,
               startTime,
             });
           }
         }
+        
+        // Mark this role as processed
+        delete existingShiftsByRole[roleName];
+      }
+    }
+    
+    // Remove shifts for roles that are no longer needed
+    for (const [roleName, shifts] of Object.entries(existingShiftsByRole)) {
+      for (const shift of shifts) {
+        await deleteShiftSafely(shift);
       }
     }
 
@@ -294,7 +356,6 @@ export const importFromExcel = mutation({
           startTime: showData.startTime,
           openDate: showData.openDate,
           closeDate: showData.closeDate,
-          roles: showData.roles,
           isActive: true,
         });
         
@@ -326,8 +387,10 @@ export const importFromExcel = mutation({
               await ctx.db.insert("shifts", {
                 showId,
                 role: roleName,
+                positions: 1,
                 peopleNeeded: 1,
                 startTime,
+                isActive: true,
               });
             } else {
               // Multiple shifts for this role (one per position)
@@ -335,9 +398,10 @@ export const importFromExcel = mutation({
                 await ctx.db.insert("shifts", {
                   showId,
                   role: roleName,
+                  positions: peopleNeeded,
                   peopleNeeded,
-                  position,
                   startTime,
+                  isActive: true,
                 });
               }
             }

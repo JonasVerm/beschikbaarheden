@@ -527,10 +527,16 @@ export function MonthlyAssignments() {
         }
       });
       
-      // Create the row data
+      // Create the row data with long date format
+      const weekdays = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+      const months = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+      const weekday = weekdays[localDate.getUTCDay()];
+      const monthName = months[localDate.getUTCMonth()];
+      const longDateFormat = `${weekday} ${localDate.getUTCDate()} ${monthName} ${localDate.getUTCFullYear()}`;
+      
       const rowData = [
         show.name,
-        localDate.toLocaleDateString('nl-BE'),
+        longDateFormat,
         show.startTime
       ];
       
@@ -606,7 +612,7 @@ export function MonthlyAssignments() {
     // Set column widths
     const columns = [
       { width: 60 }, // Show name
-      { width: 15 }, // Date
+      { width: 30 }, // Date (increased for long format)
       { width: 15 }, // Start time
     ];
 
@@ -964,8 +970,8 @@ export function MonthlyAssignments() {
                       <div>
                         <h4 className="text-xl font-bold text-gray-900">
                           {shift.role}
-                          {shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 && (
-                            <span className="ml-2 text-sm font-normal text-gray-500">#{shift.position}</span>
+                          {shift.positions && shift.positions > 1 && (
+                            <span className="ml-2 text-sm font-normal text-gray-500">({shift.positions} posities)</span>
                           )}
                         </h4>
                         {/* Status Badge */}

@@ -49,11 +49,11 @@ export function ShowDetails({ showId, onBack }: Props) {
                 <div>
                   <h3 className="font-semibold text-lg" style={{ color: '#161616' }}>
                     {shift.role}
-                    {shift.position && shift.peopleNeeded && shift.peopleNeeded > 1 && ` #${shift.position}`}
+                    {shift.positions && shift.positions > 1 && ` (${shift.positions} posities)`}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {shift.personId ? "Toegewezen" : "Niet toegewezen"}
-                    {shift.peopleNeeded && shift.peopleNeeded > 1 && ` (${shift.position}/${shift.peopleNeeded})`}
+                    {shift.positions && shift.positions > 1 && ` (${shift.positions} posities)`}
                   </p>
                   {shift.startTime && (
                     <p className="text-sm text-gray-500">

@@ -98,6 +98,8 @@ export const linkUserToAdminRole = mutation({
       }
       
       console.log("No admin role found for user:", user.email);
+      // Since we now handle authorization in auth callbacks, 
+      // users without roles should not be able to access admin functions
       return null;
     } catch (error) {
       console.error("Error in linkUserToAdminRole:", error);

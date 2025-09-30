@@ -40,9 +40,10 @@ export const create = mutation({
     return await ctx.db.insert("shifts", {
       showId: args.showId,
       role: args.role,
-      peopleNeeded: args.peopleNeeded,
-      position: args.position,
+      positions: args.peopleNeeded || 1,
+      peopleNeeded: args.peopleNeeded || 1,
       startTime: startTime,
+      isActive: true,
     });
   },
 });

@@ -9,7 +9,7 @@ export async function handleSuperAdminSetup(
   try {
     console.log("Auth callback triggered", { existingUserId, userId });
     
-    // If this is a new user, check if they should be the super admin
+    // If this is a new user, check if they should be allowed to register
     if (!existingUserId) {
       const user = await ctx.db.get(userId);
       
@@ -18,7 +18,7 @@ export async function handleSuperAdminSetup(
         return;
       }
 
-      console.log("Checking for pending super admin setup for:", user.email);
+      console.log("Checking registration permissions for:", user.email);
 
       // Check if this user's email matches the pending super admin
       const pendingEmail = await ctx.db
@@ -57,10 +57,54 @@ export async function handleSuperAdminSetup(
         }
         
         console.log("Pending setup cleaned up");
+        return; // Allow registration
       }
+
+      // Check if this email was pre-approved by a super admin
+      const existingAdminRecord = await ctx.db
+        .query("users")
+        .withIndex("email", (q: any) => q.eq("email", user.email))
+        .filter((q: any) => q.neq(q.field("_id"), userId))
+        .first();
+
+      if (existingAdminRecord) {
+        console.log("Found existing admin record for email:", user.email);
+        
+        // Check if this admin record has a role
+        const adminRole = await ctx.db
+          .query("userRoles")
+          .withIndex("by_user", (q: any) => q.eq("userId", existingAdminRecord._id))
+          .first();
+        
+        if (adminRole) {
+          console.log("Transferring role from old record:", adminRole.role);
+          
+          // Transfer the role to the authenticated user
+          await ctx.db.insert("userRoles", {
+            userId: userId,
+            role: adminRole.role,
+          });
+          
+          // Clean up old records
+          await ctx.db.delete(adminRole._id);
+          await ctx.db.delete(existingAdminRecord._id);
+          
+          console.log("Role transferred successfully");
+          return; // Allow registration
+        }
+      }
+
+      // If we get here, this email is not authorized to register
+      console.log("Unauthorized registration attempt for:", user.email);
+      
+      // Delete the unauthorized user account
+      await ctx.db.delete(userId);
+      
+      throw new Error("Dit e-mailadres is niet geautoriseerd om te registreren. Neem contact op met een beheerder.");
     }
   } catch (error) {
     console.error("Error in handleSuperAdminSetup:", error);
-    // Don't throw the error to prevent auth from failing
+    // Re-throw the error to prevent unauthorized registration
+    throw error;
   }
 }

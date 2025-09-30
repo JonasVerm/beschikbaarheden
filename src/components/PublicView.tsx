@@ -3,6 +3,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { MessageForm } from "./MessageForm";
+import { PasswordLogin } from "./PasswordLogin";
+import { PasswordChangeForm } from "./PasswordChangeForm";
 
 type GroupedShift = {
   _id: Id<"shifts">;
@@ -35,8 +37,8 @@ type CalendarDay = {
 
 export function PublicView() {
   const [selectedPersonId, setSelectedPersonId] = useState<Id<"people"> | null>(null);
-  const [pendingPersonId, setPendingPersonId] = useState<Id<"people"> | null>(null);
-  const [passwordInput, setPasswordInput] = useState("");
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedShow, setSelectedShow] = useState<ShowWithShifts | null>(null);
   const [optimisticAvailability, setOptimisticAvailability] = useState<Map<Id<"shifts">, boolean | null>>(new Map());
@@ -180,36 +182,18 @@ export function PublicView() {
   const clearAvailability = useMutation(api.availability.clearAvailability);
   const markRestAsUnavailable = useMutation(api.availability.markRestAsUnavailable);
 
-  // Helper function to get first name from full name
-  const getFirstName = (fullName: string): string => {
-    return fullName.split(' ')[0].toLowerCase();
+  // Handle successful login
+  const handleLoginSuccess = (personId: Id<"people">, mustChange: boolean) => {
+    setSelectedPersonId(personId);
+    setMustChangePassword(mustChange);
+    setShowPasswordChange(mustChange);
+    setOptimisticAvailability(new Map());
   };
 
-  // Handle password verification
-  const handlePasswordVerification = () => {
-    if (!pendingPersonId) return;
-    
-    const pendingPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === pendingPersonId);
-    if (!pendingPerson) return;
-    
-    const expectedFirstName = getFirstName(pendingPerson.name);
-    const enteredPassword = passwordInput.toLowerCase().trim();
-    
-    if (enteredPassword === expectedFirstName) {
-      setSelectedPersonId(pendingPersonId);
-      setPendingPersonId(null);
-      setPasswordInput("");
-      setOptimisticAvailability(new Map());
-    } else {
-      alert("Onjuiste naam. Probeer opnieuw.");
-      setPasswordInput("");
-    }
-  };
-
-  // Handle person selection (now shows password prompt)
-  const handlePersonSelection = (personId: Id<"people">) => {
-    setPendingPersonId(personId);
-    setPasswordInput("");
+  // Handle successful password change
+  const handlePasswordChangeSuccess = () => {
+    setShowPasswordChange(false);
+    setMustChangePassword(false);
   };
 
   const handleAvailabilityChange = async (shiftId: Id<"shifts">, newStatus: boolean | null) => {
@@ -353,150 +337,27 @@ export function PublicView() {
     return 'Open';
   };
 
-  // Show password verification screen
-  if (pendingPersonId) {
-    const pendingPerson = peopleByGroup?.flatMap(g => g.people).find(p => p._id === pendingPersonId);
-    
+  // Show password change form if required
+  if (showPasswordChange && selectedPersonId) {
     return (
-      <div className="max-w-md mx-auto px-4">
-        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
-          <div className="text-center mb-6 md:mb-8">
-            <div className="flex justify-center mb-4">
-              {logoUrl ? (
-                <img 
-                  src={logoUrl} 
-                  alt="Logo" 
-                  className="h-12 md:h-16 w-auto object-contain rounded-lg shadow-md bg-white"
-                />
-              ) : (
-                <div 
-                  className="h-12 md:h-16 w-12 md:w-16 rounded-lg shadow-md flex items-center justify-center text-white font-bold text-xl md:text-2xl" 
-                  style={{ backgroundColor: brandingSettings?.primaryColor || '#161616' }}
-                >
-                  {brandingSettings?.siteName?.charAt(0).toUpperCase() || 'C'}
-                </div>
-              )}
-            </div>
-            <h2 className="text-xl md:text-2xl font-bold mb-2 text-brand-primary">Bevestig je identiteit</h2>
-            <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">
-              Je hebt <span className="font-semibold">{pendingPerson?.name}</span> geselecteerd.
-              <br />
-              Voer je voornaam in om te bevestigen.
-            </p>
-          </div>
-          
-          <form onSubmit={(e) => { e.preventDefault(); handlePasswordVerification(); }} className="space-y-4 md:space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Voornaam
-              </label>
-              <input
-                type="text"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-4 md:py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition-all duration-200 text-lg md:text-base"
-                placeholder="Voer je voornaam in..."
-                autoFocus
-                required
-              />
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="submit"
-                className="flex-1 py-4 md:py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg text-lg md:text-base bg-brand-secondary text-brand-primary"
-              >
-                Bevestigen
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPendingPersonId(null);
-                  setPasswordInput("");
-                }}
-                className="flex-1 py-4 md:py-3 px-6 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-all duration-200 text-lg md:text-base"
-              >
-                Annuleren
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <PasswordChangeForm
+        personId={selectedPersonId}
+        isFirstTime={mustChangePassword}
+        onSuccess={handlePasswordChangeSuccess}
+        onCancel={mustChangePassword ? undefined : () => setShowPasswordChange(false)}
+      />
     );
   }
 
+  // Show login screen if no person selected
   if (!selectedPersonId) {
     return (
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-100">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              {logoUrl ? (
-                <img 
-                  src={logoUrl} 
-                  alt="Logo" 
-                  className="h-16 md:h-20 w-auto object-contain rounded-lg shadow-md bg-white"
-                />
-              ) : (
-                <div 
-                  className="h-16 md:h-20 w-16 md:w-20 rounded-lg shadow-md flex items-center justify-center text-white font-bold text-2xl md:text-3xl" 
-                  style={{ backgroundColor: brandingSettings?.primaryColor || '#161616' }}
-                >
-                  {brandingSettings?.siteName?.charAt(0).toUpperCase() || 'C'}
-                </div>
-              )}
-            </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-brand-primary">Selecteer je naam</h2>
-          </div>
-          
-          {peopleByGroup && peopleByGroup.length > 0 ? (
-            <div className="space-y-6">
-              {peopleByGroup.map((groupData) => (
-                <div key={groupData.group._id || 'ungrouped'}>
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div 
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs"
-                      style={{ backgroundColor: groupData.group.color }}
-                    >
-                      {groupData.group.displayName.charAt(0).toUpperCase()}
-                    </div>
-                    <h3 className="text-lg font-semibold text-brand-primary">
-                      {groupData.group.displayName}
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {groupData.people
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((person) => (
-                        <button
-                          key={person._id}
-                          onClick={() => handlePersonSelection(person._id)}
-                          className="p-8 md:p-6 text-center border-2 rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-[1.02] group min-h-[80px] md:min-h-[70px] flex items-center justify-center"
-                          style={{ 
-                            backgroundColor: '#fefefe',
-                            borderColor: groupData.group.color
-                          }}
-                        >
-                          <div className="font-semibold text-base md:text-sm group-hover:text-lg md:group-hover:text-base transition-all duration-200 leading-tight text-brand-primary">
-                            {person.name}
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                  {groupData.people.length === 0 && (
-                    <p className="text-gray-500 italic text-center py-4">Geen medewerkers in deze groep</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">Geen medewerkers gevonden</p>
-              <p className="text-gray-400 text-sm mt-2">Neem contact op met een beheerder</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <PasswordLogin
+        onLoginSuccess={handleLoginSuccess}
+        onBack={() => {
+          // This would go back to the main page - handled by parent component
+        }}
+      />
     );
   }
 
@@ -672,6 +533,16 @@ export function PublicView() {
             </div>
           </div>
           <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            <button
+              onClick={() => setShowPasswordChange(true)}
+              className="w-full md:w-auto px-3 md:px-4 py-3 md:py-2 rounded-lg font-medium hover:opacity-90 transition-all duration-200 shadow-sm hover:shadow-md text-sm md:text-sm bg-green-600 text-white flex items-center justify-center space-x-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2v6a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2m0 0V7a2 2 0 012-2m3 0a2 2 0 00-2-2M9 7h6" />
+              </svg>
+              <span className="md:hidden">Wachtwoord</span>
+              <span className="hidden md:inline">Wachtwoord Wijzigen</span>
+            </button>
             <button
               onClick={handleMarkRestAsUnavailable}
               disabled={isMarkingUnavailable}

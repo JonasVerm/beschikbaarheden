@@ -42,6 +42,7 @@ export const setAvailability = mutation({
             personId: args.personId,
             shiftId: roleShift._id,
             available: true,
+            submittedAt: Date.now(),
           });
         }
       } else {
@@ -55,6 +56,7 @@ export const setAvailability = mutation({
             personId: args.personId,
             shiftId: roleShift._id,
             available: false,
+            submittedAt: Date.now(),
           });
         }
       }
@@ -155,6 +157,7 @@ export const markRestAsUnavailable = mutation({
             personId: args.personId,
             shiftId: shift._id,
             available: false,
+            submittedAt: Date.now(),
           });
           markedUnavailable++;
         }
@@ -209,6 +212,7 @@ export const adminSetAvailability = mutation({
             personId: args.personId,
             shiftId: roleShift._id,
             available: true,
+            submittedAt: Date.now(),
           });
         }
       } else {
@@ -219,6 +223,7 @@ export const adminSetAvailability = mutation({
             personId: args.personId,
             shiftId: roleShift._id,
             available: false,
+            submittedAt: Date.now(),
           });
         }
       }

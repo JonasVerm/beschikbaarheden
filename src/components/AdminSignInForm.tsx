@@ -50,6 +50,8 @@ export function AdminSignInForm() {
             let toastTitle = "";
             if (error.message.includes("Invalid password")) {
               toastTitle = "Ongeldig wachtwoord. Probeer opnieuw.";
+            } else if (error.message.includes("niet geautoriseerd om te registreren")) {
+              toastTitle = "Dit e-mailadres is niet geautoriseerd. Neem contact op met een beheerder.";
             } else {
               toastTitle =
                 flow === "signIn"
@@ -78,14 +80,19 @@ export function AdminSignInForm() {
           required
         />
         {flow === "signUp" && (
-          <input
-            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2"
-            style={{ borderColor: '#161616' }}
-            type="text"
-            name="name"
-            placeholder="Naam"
-            required
-          />
+          <>
+            <input
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2"
+              style={{ borderColor: '#161616' }}
+              type="text"
+              name="name"
+              placeholder="Naam"
+              required
+            />
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              <strong>Let op:</strong> Alleen e-mailadressen die door een super admin zijn geautoriseerd kunnen registreren.
+            </div>
+          </>
         )}
         <button 
           className="px-4 py-2 text-white rounded hover:opacity-80 disabled:opacity-50"

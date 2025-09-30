@@ -30,7 +30,10 @@ export const initializeRoleConfigurations = mutation({
       const defaultHours = DEFAULT_ROLE_CONFIGS[role.name as keyof typeof DEFAULT_ROLE_CONFIGS] || 2.0;
       await ctx.db.insert("roleConfigurations", {
         role: role.name,
+        daysBeforeShowToOpen: 7,
+        daysBeforeShowToClose: 1,
         hoursBeforeShow: defaultHours,
+        isActive: true,
       });
     }
     
@@ -83,7 +86,10 @@ export const updateRoleConfiguration = mutation({
     } else {
       await ctx.db.insert("roleConfigurations", {
         role: args.role,
+        daysBeforeShowToOpen: 7,
+        daysBeforeShowToClose: 1,
         hoursBeforeShow: args.hoursBeforeShow,
+        isActive: true,
       });
     }
     

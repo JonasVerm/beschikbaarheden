@@ -24,16 +24,7 @@ export default function App() {
     api.storage.getUrl,
     brandingSettings?.logoId ? { storageId: brandingSettings.logoId as any } : "skip"
   );
-  const linkUserToAdminRole = useMutation(api.roleLinking.linkUserToAdminRole);
-  
-  // Try to link user to admin role when they log in
-  useEffect(() => {
-    if (loggedInUser && !loggedInUser.adminRole) {
-      linkUserToAdminRole().catch(() => {
-        // Ignore errors - user might not be an admin
-      });
-    }
-  }, [loggedInUser, linkUserToAdminRole]);
+  // Role linking is now handled in auth callbacks during registration
 
   // Check if password verification is needed for public access
   const needsPasswordVerification = hasPublicPassword && !isPasswordVerified && !showAdminLogin;
