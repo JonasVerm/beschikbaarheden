@@ -35,6 +35,7 @@ import type * as roleConfigurations from "../roleConfigurations.js";
 import type * as roleLinking from "../roleLinking.js";
 import type * as roles from "../roles.js";
 import type * as router from "../router.js";
+import type * as shiftUpdates from "../shiftUpdates.js";
 import type * as shifts from "../shifts.js";
 import type * as shows from "../shows.js";
 import type * as staffOverview from "../staffOverview.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   roleLinking: typeof roleLinking;
   roles: typeof roles;
   router: typeof router;
+  shiftUpdates: typeof shiftUpdates;
   shifts: typeof shifts;
   shows: typeof shows;
   staffOverview: typeof staffOverview;

@@ -1,6 +1,7 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireAdmin } from "./adminHelpers";
+import { internal } from "./_generated/api";
 
 // Default configurations for backward compatibility
 const DEFAULT_ROLE_CONFIGS = {
@@ -93,7 +94,32 @@ export const updateRoleConfiguration = mutation({
       });
     }
     
+    // Update existing shifts for this role
+    await ctx.runMutation(internal.shiftUpdates.updateExistingShifts, {
+      role: args.role,
+      hoursBeforeShow: args.hoursBeforeShow,
+    });
+    
     return { success: true };
+  },
+});
+
+// Debug query to check what's actually stored
+export const debugRoleConfig = query({
+  args: { role: v.string() },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const config = await ctx.db
+      .query("roleConfigurations")
+      .withIndex("by_role", (q) => q.eq("role", args.role))
+      .first();
+    
+    return {
+      found: !!config,
+      config: config,
+      role: args.role
+    };
   },
 });
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
@@ -22,6 +22,7 @@ export function ShowsManager() {
 
   const shows = useQuery(api.shows.list);
   const roles = useQuery(api.roles.listActive);
+  const showDetails = useQuery(api.shows.getShowDetails, editingShowId ? { showId: editingShowId } : "skip");
   const createShow = useMutation(api.shows.create);
   const updateShow = useMutation(api.shows.update);
   const removeShow = useMutation(api.shows.remove);
@@ -94,7 +95,7 @@ export function ShowsManager() {
   const weekDays = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
   // Initialize roles in form data when roles are loaded
-  useState(() => {
+  useEffect(() => {
     if (roles && Object.keys(formData.roles).length === 0) {
       const initialRoles: Record<string, number> = {};
       roles.forEach(role => {
@@ -102,7 +103,7 @@ export function ShowsManager() {
       });
       setFormData(prev => ({ ...prev, roles: initialRoles }));
     }
-  });
+  }, [roles, formData.roles]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,23 +155,30 @@ export function ShowsManager() {
   };
 
   const handleEdit = (show: any) => {
-    // Initialize roles with current active roles, preserving existing values
-    const initialRoles: Record<string, number> = {};
-    roles?.forEach(role => {
-      initialRoles[role.name] = show.roles?.[role.name] || 0;
-    });
-    
-    setFormData({
-      name: show.name,
-      date: show.date,
-      startTime: show.startTime,
-      openDate: show.openDate || "",
-      closeDate: show.closeDate || "",
-      roles: initialRoles
-    });
     setEditingShowId(show._id);
-    setShowForm(true);
+    // The form data will be populated when showDetails loads
   };
+
+  // Update form data when show details are loaded for editing
+  useEffect(() => {
+    if (showDetails && editingShowId && roles) {
+      // Initialize roles with current active roles, using actual shift counts
+      const initialRoles: Record<string, number> = {};
+      roles.forEach(role => {
+        initialRoles[role.name] = showDetails.roles?.[role.name] || 0;
+      });
+      
+      setFormData({
+        name: showDetails.name,
+        date: showDetails.date,
+        startTime: showDetails.startTime,
+        openDate: showDetails.openDate || "",
+        closeDate: showDetails.closeDate || "",
+        roles: initialRoles
+      });
+      setShowForm(true);
+    }
+  }, [showDetails, editingShowId, roles]);
 
   const handleDelete = async (showId: Id<"shows">) => {
     if (confirm("Weet je zeker dat je deze show wilt verwijderen?")) {

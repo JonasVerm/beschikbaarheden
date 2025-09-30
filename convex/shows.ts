@@ -192,9 +192,9 @@ export const update = mutation({
             });
           }
           
-          // Add new shifts
+          // Add new shifts and copy availability from existing shifts
           for (let i = 0; i < shiftsToAdd; i++) {
-            await ctx.db.insert("shifts", {
+            const newShiftId = await ctx.db.insert("shifts", {
               showId: args.showId,
               role: roleName,
               positions: peopleNeeded,
@@ -202,6 +202,25 @@ export const update = mutation({
               startTime,
               isActive: true,
             });
+
+            // Copy availability responses from existing shifts of the same role
+            if (existingShiftsForRole.length > 0) {
+              const referenceShift = existingShiftsForRole[0];
+              const existingAvailabilities = await ctx.db
+                .query("availability")
+                .filter((q) => q.eq(q.field("shiftId"), referenceShift._id))
+                .collect();
+
+              // Copy each availability response to the new shift
+              for (const availability of existingAvailabilities) {
+                await ctx.db.insert("availability", {
+                  personId: availability.personId,
+                  shiftId: newShiftId,
+                  available: availability.available,
+                  submittedAt: availability.submittedAt || Date.now(),
+                });
+              }
+            }
           }
         } else if (peopleNeeded < currentCount) {
           // Need to remove some shifts - prioritize removing unassigned ones
@@ -419,5 +438,33 @@ export const importFromExcel = mutation({
     }
     
     return results;
+  },
+});
+
+export const getShowDetails = query({
+  args: { showId: v.id("shows") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    
+    const show = await ctx.db.get(args.showId);
+    if (!show) return null;
+    
+    // Get all shifts for this show and count by role
+    const shifts = await ctx.db
+      .query("shifts")
+      .withIndex("by_show", (q) => q.eq("showId", args.showId))
+      .collect();
+    
+    // Count shifts by role
+    const roleCounts: Record<string, number> = {};
+    shifts.forEach(shift => {
+      roleCounts[shift.role] = (roleCounts[shift.role] || 0) + 1;
+    });
+    
+    // Return show with actual role counts from shifts
+    return {
+      ...show,
+      roles: roleCounts
+    };
   },
 });
