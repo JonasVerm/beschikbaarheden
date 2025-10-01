@@ -302,19 +302,75 @@ export function PublicView() {
     }
   };
 
+  // Helper function to get text color based on show status
+  const getShowTextColor = (show: ShowWithShifts) => {
+    const hasResponse = show.shifts.some(shift => {
+      const availability = optimisticAvailability.has(shift._id) 
+        ? optimisticAvailability.get(shift._id) 
+        : shift.availability;
+      return availability !== null;
+    });
+    
+    if (hasResponse) return 'text-white';
+    if (show.hasUnrespondedShifts) return 'text-gray-800';
+    return 'text-brand-secondary';
+  };
+
   // Helper function to get show status color and style
   const getShowStyle = (show: ShowWithShifts) => {
     if (show.availabilityStatus === 'closed' || show.availabilityStatus === 'not_yet_open') {
       return {
-        backgroundColor: '#9CA3AF', // Gray
-        opacity: 0.6,
+        backgroundColor: '#6B7280', // Darker gray for better visibility
+        color: '#F3F4F6', // Light gray text
+        opacity: 0.8,
         cursor: 'default'
       };
     }
     
+    // Check if user has responded to any shifts in this show
+    let hasAvailableResponse = false;
+    let hasUnavailableResponse = false;
+    let hasAnyResponse = false;
+    
+    show.shifts.forEach(shift => {
+      const availability = optimisticAvailability.has(shift._id) 
+        ? optimisticAvailability.get(shift._id) 
+        : shift.availability;
+      
+      if (availability !== null) {
+        hasAnyResponse = true;
+        if (availability === true) {
+          hasAvailableResponse = true;
+        } else if (availability === false) {
+          hasUnavailableResponse = true;
+        }
+      }
+    });
+    
+    // If user has responded to at least one shift
+    if (hasAnyResponse) {
+      // Green if at least one shift is marked as available
+      if (hasAvailableResponse) {
+        return {
+          backgroundColor: 'rgba(34, 197, 94, 0.7)', // Semi-transparent green background
+          color: '#ffffff', // White text
+        };
+      }
+      // Red if all responses are unavailable
+      else if (hasUnavailableResponse) {
+        return {
+          backgroundColor: 'rgba(239, 68, 68, 0.7)', // Semi-transparent red background
+          color: '#ffffff', // White text
+        };
+      }
+    }
+    
+    // Yellow with red outline if there are unresponded shifts
     if (show.hasUnrespondedShifts) {
       return {
-        backgroundColor: '#EF4444', // Red for attention
+        backgroundColor: '#FCD34D', // Yellow background
+        color: '#1F2937', // Dark text for better contrast on yellow
+        boxShadow: '0 0 0 2px #EF4444, 0 0 8px rgba(239, 68, 68, 0.6)', // Red glowing outline
         animation: 'pulse 2s infinite'
       };
     }
@@ -446,70 +502,95 @@ export function PublicView() {
                   </div>
                 </div>
                 <div className="flex items-center justify-center md:justify-end space-x-2 md:space-x-3 w-full md:w-auto">
-                  {shift.availabilityStatus === 'open' ? (
-                    <>
-                      {(() => {
-                        const displayAvailability = optimisticAvailability.has(shift._id) 
-                          ? optimisticAvailability.get(shift._id) 
-                          : shift.availability;
-                        
-                        return (
-                          <div className="flex items-center space-x-2 md:space-x-3">
-                            {/* Available Button */}
-                            <button
-                              onClick={() => handleAvailabilityChange(shift._id, displayAvailability === true ? null : true)}
-                              className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
-                                displayAvailability === true
-                                  ? "text-white shadow-green-200"
-                                  : "border-2 border-gray-200 hover:border-green-300 bg-white hover:bg-green-50"
-                              }`}
-                              style={displayAvailability === true ? { backgroundColor: '#22c55e' } : {}}
-                              title={displayAvailability === true ? "Beschikbaar - klik om te wijzigen" : "Klik om beschikbaar te zijn"}
-                            >
-                              <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-
-                            {/* Not Available Button */}
-                            <button
-                              onClick={() => handleAvailabilityChange(shift._id, displayAvailability === false ? null : false)}
-                              className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 shadow-lg ${
-                                displayAvailability === false
-                                  ? "text-white shadow-red-200"
-                                  : "border-2 border-gray-200 hover:border-red-300 bg-white hover:bg-red-50"
-                              }`}
-                              style={displayAvailability === false ? { backgroundColor: '#ef4444' } : {}}
-                              title={displayAvailability === false ? "Niet beschikbaar - klik om te wijzigen" : "Klik om niet beschikbaar te zijn"}
-                            >
-                              <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </div>
-                        );
-                      })()}
-                      <div className="text-sm md:text-sm min-w-[100px] md:min-w-[120px] text-center md:text-left">
-                        {(() => {
-                          const displayAvailability = optimisticAvailability.has(shift._id) 
-                            ? optimisticAvailability.get(shift._id) 
-                            : shift.availability;
-                          
-                          if (displayAvailability === true) {
-                            return <span className="text-green-600 font-medium">Beschikbaar</span>;
-                          } else if (displayAvailability === false) {
-                            return <span className="text-red-600 font-medium">Niet beschikbaar</span>;
-                          } else {
-                            return <span className="text-gray-500">Geen reactie</span>;
+                  {(() => {
+                    const displayAvailability = optimisticAvailability.has(shift._id) 
+                      ? optimisticAvailability.get(shift._id) 
+                      : shift.availability;
+                    
+                    const isOpen = shift.availabilityStatus === 'open';
+                    
+                    return (
+                      <div className="flex items-center space-x-2 md:space-x-3">
+                        {/* Available Button */}
+                        <button
+                          onClick={() => isOpen ? handleAvailabilityChange(shift._id, displayAvailability === true ? null : true) : undefined}
+                          className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+                            isOpen ? 'hover:scale-105' : 'cursor-not-allowed'
+                          } ${
+                            displayAvailability === true
+                              ? isOpen 
+                                ? "text-white shadow-green-200"
+                                : "text-white shadow-green-200 opacity-40"
+                              : isOpen
+                                ? "border-2 border-gray-200 hover:border-green-300 bg-white hover:bg-green-50"
+                                : "border-2 border-gray-200 bg-white opacity-40"
+                          }`}
+                          style={displayAvailability === true ? { 
+                            backgroundColor: isOpen ? '#22c55e' : 'rgba(34, 197, 94, 0.4)' 
+                          } : {}}
+                          title={
+                            !isOpen 
+                              ? "Beschikbaarheid is gesloten" 
+                              : displayAvailability === true 
+                                ? "Beschikbaar - klik om te wijzigen" 
+                                : "Klik om beschikbaar te zijn"
                           }
-                        })()}
+                          disabled={!isOpen}
+                        >
+                          <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+
+                        {/* Not Available Button */}
+                        <button
+                          onClick={() => isOpen ? handleAvailabilityChange(shift._id, displayAvailability === false ? null : false) : undefined}
+                          className={`relative w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
+                            isOpen ? 'hover:scale-105' : 'cursor-not-allowed'
+                          } ${
+                            displayAvailability === false
+                              ? isOpen
+                                ? "text-white shadow-red-200"
+                                : "text-white shadow-red-200 opacity-40"
+                              : isOpen
+                                ? "border-2 border-gray-200 hover:border-red-300 bg-white hover:bg-red-50"
+                                : "border-2 border-gray-200 bg-white opacity-40"
+                          }`}
+                          style={displayAvailability === false ? { 
+                            backgroundColor: isOpen ? '#ef4444' : 'rgba(239, 68, 68, 0.4)' 
+                          } : {}}
+                          title={
+                            !isOpen 
+                              ? "Beschikbaarheid is gesloten" 
+                              : displayAvailability === false 
+                                ? "Niet beschikbaar - klik om te wijzigen" 
+                                : "Klik om niet beschikbaar te zijn"
+                          }
+                          disabled={!isOpen}
+                        >
+                          <svg className="w-7 h-7 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        
+                        <div className="text-sm md:text-sm min-w-[100px] md:min-w-[120px] text-center md:text-left">
+                          {(() => {
+                            if (!isOpen) {
+                              return <span className="text-gray-400">{shift.availabilityStatus === 'closed' ? 'Gesloten' : 'Nog niet open'}</span>;
+                            }
+                            
+                            if (displayAvailability === true) {
+                              return <span className="text-green-600 font-medium">Beschikbaar</span>;
+                            } else if (displayAvailability === false) {
+                              return <span className="text-red-600 font-medium">Niet beschikbaar</span>;
+                            } else {
+                              return <span className="text-gray-500">Geen reactie</span>;
+                            }
+                          })()}
+                        </div>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-sm text-gray-500 min-w-[120px]">
-                      {shift.availabilityStatus === 'closed' ? 'Gesloten' : 'Nog niet open'}
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               </div>
             ))}
@@ -637,17 +718,19 @@ export function PublicView() {
                     onClick={() => setSelectedShow(show)}
                     className="w-full text-left p-1 md:p-2 text-xs text-white rounded-lg hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg"
                     style={getShowStyle(show)}
-                    disabled={show.availabilityStatus === 'closed' || show.availabilityStatus === 'not_yet_open'}
+                    disabled={false}
                   >
                     <div className="font-medium truncate text-xs md:text-sm hidden md:block">{show.name}</div>
                     <div className="flex items-center justify-between mt-1 hidden md:flex">
-                      <span className="text-xs text-brand-secondary">{show.startTime}</span>
+                      <span className={`text-xs ${getShowTextColor(show)}`}>{show.startTime}</span>
                       <div className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${
                         show.availabilityStatus === 'open' 
                           ? show.hasUnrespondedShifts 
                             ? 'bg-red-400 animate-pulse' 
                             : 'bg-green-400'
-                          : 'bg-gray-400'
+                          : show.availabilityStatus === 'closed'
+                            ? 'bg-red-600'
+                            : 'bg-yellow-500'
                       }`}></div>
                     </div>
                     <div className="text-xs opacity-75 mt-1 hidden md:block">
@@ -660,7 +743,9 @@ export function PublicView() {
                           ? show.hasUnrespondedShifts 
                             ? 'bg-red-400 animate-pulse' 
                             : 'bg-green-400'
-                          : 'bg-gray-400'
+                          : show.availabilityStatus === 'closed'
+                            ? 'bg-red-600'
+                            : 'bg-yellow-500'
                       }`}></div>
                     </div>
                   </button>
